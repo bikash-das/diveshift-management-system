@@ -103,6 +103,44 @@ app.delete("/employee/:id", async (req, res) => {
     res.status(500).send("Error deleting employee");
   }
 });
+app.delete("/log/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM logs WHERE id = $1", [id]);
+    res.send("Deleted");
+  } catch (err) {
+    res.status(500).send("Error deleting log");
+  }
+});
+app.get("/reports/detailed/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { month, year } = req.query; // Get filters from URL
+
+  try {
+    const result = await pool.query(
+      `SELECT 
+         e.name,
+         COALESCE(SUM(CASE WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) != 5 THEN 0.5 ELSE 0 END), 0) AS normal_days,
+         COALESCE(SUM(CASE WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) = 5 THEN 0.5 ELSE 0 END), 0) AS fridays,
+         COALESCE(SUM(CASE WHEN l.activity = 'SICK' THEN 0.5 ELSE 0 END), 0) AS sick_days,
+         COALESCE(SUM(CASE WHEN l.activity = 'OFF' THEN 0.5 ELSE 0 END), 0) AS off_days,
+         COALESCE(SUM(CASE WHEN l.activity = 'PH' THEN 0.5 ELSE 0 END), 0) AS public_holidays
+       FROM employees e
+       LEFT JOIN logs l ON e.id = l.employee_id 
+         AND EXTRACT(MONTH FROM l.work_date) = $2 
+         AND EXTRACT(YEAR FROM l.work_date) = $3
+       WHERE e.user_id = $1
+       GROUP BY e.id, e.name
+       ORDER BY e.name ASC`,
+      [userId, month, year],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching filtered report");
+  }
+});
 app.post("/signup", async (req, res) => {
   const { username, password } = req.body;
 

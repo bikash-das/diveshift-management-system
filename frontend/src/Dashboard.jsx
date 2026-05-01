@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import AddShift from "./AddShift";
 import Logs from "./Logs";
 import Employees from "./Employees";
+import Reports from "./Reports";
 
 export default function Dashboard() {
   const API = "http://localhost:3000";
@@ -13,7 +14,7 @@ export default function Dashboard() {
 
   const fetchEmployees = async () => {
     if (!user) return;
-    const res = await fetch(`${API}/employee/${user.id}`); // ✅ fixed
+    const res = await fetch(`${API}/employee/${user.id}`);
     const data = await res.json();
     setEmployees(data);
   };
@@ -41,12 +42,12 @@ export default function Dashboard() {
     <div style={{ padding: 20 }}>
       {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>DiveShift</h2>
+        <h2>DiveShift | {user.username}'s workspace</h2>
 
         <div>
           <button onClick={() => setView("shift")}>Add Shift</button>
-          <button onClick={() => setView("logs")}>Logs</button>
           <button onClick={() => setView("employees")}>Employees</button>
+          <button onClick={() => setView("reports")}>Reports</button>
           <button onClick={handleLogout}>Logout</button>
         </div>
       </div>
@@ -60,12 +61,12 @@ export default function Dashboard() {
           user={user}
           employees={employees}
           fetchLogs={fetchLogs}
+          logs={logs}
         />
       )}
 
-      {view === "logs" && <Logs logs={logs} />}
-
       {view === "employees" && <Employees API={API} user={user} />}
+      {view === "reports" && <Reports API={API} user={user} />}
     </div>
   );
 }
