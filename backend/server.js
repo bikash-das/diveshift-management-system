@@ -68,19 +68,9 @@ app.post("/employee", async (req, res) => {
   }
 });
 
-app.get("/employees/:userId", async (req, res) => {
+app.get("/employee/:userId", async (req, res) => {
   const { userId } = req.params;
-  console.log("Userid: ", userId);
-
-  const result = await pool.query("SELECT * FROM employees WHERE user_id=$1", [
-    userId,
-  ]);
-
-  res.json(result.rows);
-});
-
-app.get("/employees/:userId", async (req, res) => {
-  const { userId } = req.params;
+  console.log("Employees API hit at:", new Date().toISOString());
 
   const result = await pool.query("SELECT * FROM employees WHERE user_id=$1", [
     userId,
@@ -103,7 +93,16 @@ app.get("/logs/:userId", async (req, res) => {
 
   res.json(result.rows);
 });
-
+app.delete("/employee/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM employees WHERE id = $1", [id]);
+    res.send("Deleted");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error deleting employee");
+  }
+});
 app.post("/signup", async (req, res) => {
   const { username, password } = req.body;
 

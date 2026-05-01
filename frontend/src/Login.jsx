@@ -17,7 +17,7 @@ export default function Login({ onLogin }) {
 
     if (res.ok) {
       const data = await res.json();
-      // 🔥 THIS LINE IS CRITICAL
+
       localStorage.setItem("user", JSON.stringify(data));
 
       onLogin();

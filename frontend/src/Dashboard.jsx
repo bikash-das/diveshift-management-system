@@ -1,191 +1,71 @@
 import { useState, useEffect } from "react";
+import AddShift from "./AddShift";
+import Logs from "./Logs";
+import Employees from "./Employees";
 
 export default function Dashboard() {
   const API = "http://localhost:3000";
-
   const user = JSON.parse(localStorage.getItem("user"));
 
+  const [view, setView] = useState("shift");
   const [employees, setEmployees] = useState([]);
   const [logs, setLogs] = useState([]);
 
-  const [form, setForm] = useState({
-    employee_id: "",
-    date: new Date().toISOString().split("T")[0],
-    shift: "S1",
-    activity: "DC",
-  });
+  const fetchEmployees = async () => {
+    if (!user) return;
+    const res = await fetch(`${API}/employee/${user.id}`); // ✅ fixed
+    const data = await res.json();
+    setEmployees(data);
+  };
 
   const fetchLogs = async () => {
+    if (!user) return;
     const res = await fetch(`${API}/logs/${user.id}`);
     const data = await res.json();
     setLogs(data);
   };
 
-  const fetchEmployees = async () => {
-    const res = await fetch(`${API}/employees/${user.id}`);
-    const data = await res.json();
-    console.log("EMPLOYEES:", data);
-    setEmployees(data);
-  };
-
   useEffect(() => {
-    if (!user) {
-      alert("Please login again");
-      window.location.reload();
-      return;
-    }
+    if (!user) return;
 
     fetchEmployees();
     fetchLogs();
-  }, [user]);
+  }, []);
 
-  // 🔹 Handle form change
-  const handleChange = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  // 🔹 Save log
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!user) {
-      alert("Please login again");
-      return;
-    }
-
-    if (!form.employee_id) {
-      alert("Please select employee");
-      return;
-    }
-
-    const res = await fetch(`${API}/log`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        employee_id: form.employee_id,
-        date: form.date,
-        shift: form.shift,
-        activity: form.activity,
-        user_id: user.id,
-      }),
-    });
-
-    if (res.ok) {
-      alert("Saved!");
-      fetchLogs();
-
-      // reset form
-      setForm({
-        employee_id: "",
-        date: new Date().toISOString().split("T")[0],
-        shift: "S1",
-        activity: "DC",
-      });
-    } else {
-      alert("Error saving");
-    }
-  };
-
-  // 🔹 Logout
   const handleLogout = () => {
     localStorage.removeItem("user");
     window.location.reload();
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "auto", padding: 20 }}>
+    <div style={{ padding: 20 }}>
       {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 20,
-          borderBottom: "1px solid #ccc",
-          paddingBottom: 10,
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h2>DiveShift</h2>
 
-        <button onClick={handleLogout}>Logout</button>
+        <div>
+          <button onClick={() => setView("shift")}>Add Shift</button>
+          <button onClick={() => setView("logs")}>Logs</button>
+          <button onClick={() => setView("employees")}>Employees</button>
+          <button onClick={handleLogout}>Logout</button>
+        </div>
       </div>
 
-      {/* ADD SHIFT */}
-      <h3>Add Shift</h3>
+      <hr />
 
-      <form onSubmit={handleSubmit}>
-        {/* Employee dropdown */}
-        <select
-          value={form.employee_id}
-          onChange={(e) => handleChange("employee_id", e.target.value)}
-          style={{ width: "100%", marginBottom: 10 }}
-        >
-          <option value="">Select Employee</option>
-
-          {employees.map((emp) => (
-            <option key={emp.id} value={emp.id}>
-              {emp.name}
-            </option>
-          ))}
-        </select>
-
-        {/* Date */}
-        <input
-          type="date"
-          value={form.date}
-          onChange={(e) => handleChange("date", e.target.value)}
-          style={{ width: "100%", marginBottom: 10 }}
+      {/* CONTENT */}
+      {view === "shift" && (
+        <AddShift
+          API={API}
+          user={user}
+          employees={employees}
+          fetchLogs={fetchLogs}
         />
+      )}
 
-        {/* Shift */}
-        <select
-          value={form.shift}
-          onChange={(e) => handleChange("shift", e.target.value)}
-          style={{ width: "100%", marginBottom: 10 }}
-        >
-          <option value="S1">Shift 1</option>
-          <option value="S2">Shift 2</option>
-        </select>
+      {view === "logs" && <Logs logs={logs} />}
 
-        {/* Activity */}
-        <select
-          value={form.activity}
-          onChange={(e) => handleChange("activity", e.target.value)}
-          style={{ width: "100%", marginBottom: 10 }}
-        >
-          <option value="DC">DC</option>
-          <option value="SNK">SNK</option>
-          <option value="OFF">OFF</option>
-          <option value="SICK">SICK</option>
-        </select>
-
-        <button type="submit" style={{ width: "100%" }}>
-          Save
-        </button>
-      </form>
-      <h3>Entries</h3>
-      <table border="1" cellPadding="5" style={{ width: "100%" }}>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Date</th>
-            <th>Shift</th>
-            <th>Activity</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {logs.map((row) => (
-            <tr key={row.id}>
-              <td>{row.name}</td>
-              <td>{row.work_date}</td>
-              <td>{row.shift}</td>
-              <td>{row.activity}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {view === "employees" && <Employees API={API} user={user} />}
     </div>
   );
 }
