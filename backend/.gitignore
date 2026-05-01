@@ -1,0 +1,14 @@
+# Ignore local secrets
+.env
+
+# Dependencies
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Production build (if using TypeScript/Compilers)
+dist/
+build/

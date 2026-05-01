@@ -19,7 +19,6 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
     const res = await fetch(`${API}/log`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Changed user_id to tenant_id to match backend refactor
       body: JSON.stringify({
         ...form,
         tenant_id: tenant.id,
@@ -27,7 +26,6 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
     });
 
     if (res.ok) {
-      // Reset only employee field to allow quick multi-entry for the same day
       setForm({ ...form, employee_id: "" });
       fetchLogs();
     } else {
@@ -38,28 +36,29 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
 
   const handleDelete = async (logId) => {
     if (!window.confirm("Are you sure you want to delete this entry?")) return;
-
-    const res = await fetch(`${API}/log/${logId}`, {
-      method: "DELETE",
-    });
-
-    if (res.ok) {
-      fetchLogs();
-    }
+    const res = await fetch(`${API}/log/${logId}`, { method: "DELETE" });
+    if (res.ok) fetchLogs();
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "25px",
+        maxWidth: "900px",
+      }}
+    >
       {/* --- FORM SECTION --- */}
       <div
         style={{
-          padding: "15px",
+          padding: "20px",
           border: "1px solid #ddd",
           borderRadius: "8px",
-          backgroundColor: "#fff",
+          backgroundColor: "#f9f9f9",
         }}
       >
-        <h3 style={{ marginTop: 0 }}>Add Shift</h3>
+        <h3 style={{ marginTop: 0, marginBottom: "15px" }}>Add Shift</h3>
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}
@@ -67,7 +66,12 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
           <select
             value={form.employee_id}
             onChange={(e) => handleChange("employee_id", e.target.value)}
-            style={{ padding: "8px", borderRadius: "4px" }}
+            style={{
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              flex: "1.5",
+            }}
           >
             <option value="">Select Employee</option>
             {employees.map((emp) => (
@@ -85,22 +89,33 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
               padding: "8px",
               borderRadius: "4px",
               border: "1px solid #ccc",
+              flex: "1",
             }}
           />
 
           <select
             value={form.shift}
             onChange={(e) => handleChange("shift", e.target.value)}
-            style={{ padding: "8px" }}
+            style={{
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              flex: "0.5",
+            }}
           >
-            <option value="S1">Shift 1</option>
-            <option value="S2">Shift 2</option>
+            <option value="S1">S1</option>
+            <option value="S2">S2</option>
           </select>
 
           <select
             value={form.activity}
             onChange={(e) => handleChange("activity", e.target.value)}
-            style={{ padding: "8px" }}
+            style={{
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              flex: "0.8",
+            }}
           >
             <option value="DC">DC</option>
             <option value="SNK">SNK</option>
@@ -128,13 +143,16 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
 
       {/* --- RECENT ENTRIES SECTION --- */}
       <div>
-        <h4 style={{ marginBottom: "10px" }}>Recent Entries (Latest First)</h4>
+        <h4 style={{ marginBottom: "15px", color: "#333" }}>
+          Recent Entries (Latest First)
+        </h4>
         <div
           style={{
             maxHeight: "450px",
             overflowY: "auto",
             border: "1px solid #eee",
             borderRadius: "8px",
+            backgroundColor: "white",
           }}
         >
           <table
@@ -148,37 +166,74 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
               style={{
                 position: "sticky",
                 top: 0,
-                backgroundColor: "#f8f9fa",
+                backgroundColor: "#343a40",
+                color: "white",
                 zIndex: 1,
               }}
             >
-              <tr style={{ borderBottom: "2px solid #ddd" }}>
-                <th style={{ padding: "12px", textAlign: "left" }}>Date</th>
-                <th style={{ padding: "12px", textAlign: "left" }}>Name</th>
-                <th style={{ padding: "12px", textAlign: "left" }}>Shift</th>
-                <th style={{ padding: "12px", textAlign: "left" }}>Activity</th>
-                <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
+              <tr>
+                <th
+                  style={{ padding: "12px", textAlign: "left", width: "20%" }}
+                >
+                  Date
+                </th>
+                <th
+                  style={{ padding: "12px", textAlign: "left", width: "30%" }}
+                >
+                  Name
+                </th>
+                <th
+                  style={{ padding: "12px", textAlign: "left", width: "15%" }}
+                >
+                  Shift
+                </th>
+                <th
+                  style={{ padding: "12px", textAlign: "left", width: "20%" }}
+                >
+                  Activity
+                </th>
+                <th
+                  style={{ padding: "12px", textAlign: "center", width: "15%" }}
+                >
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {logs && logs.length > 0 ? (
                 logs.map((log) => (
                   <tr key={log.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "10px" }}>
-                      {/* Using locale string for consistent display */}
+                    <td
+                      style={{
+                        padding: "12px",
+                        textAlign: "left",
+                        color: "#666",
+                      }}
+                    >
                       {new Date(log.work_date).toLocaleDateString("en-GB")}
                     </td>
-                    <td style={{ padding: "10px", fontWeight: "bold" }}>
+                    <td
+                      style={{
+                        padding: "12px",
+                        textAlign: "left",
+                        fontWeight: "500",
+                      }}
+                    >
                       {log.employee_name || "Staff"}
                     </td>
-                    <td style={{ padding: "10px" }}>{log.shift}</td>
-                    <td style={{ padding: "10px" }}>
+                    <td style={{ padding: "12px", textAlign: "left" }}>
+                      <span style={{ color: "#444", fontWeight: "bold" }}>
+                        {log.shift}
+                      </span>
+                    </td>
+                    <td style={{ padding: "12px", textAlign: "left" }}>
                       <span
                         style={{
                           padding: "4px 8px",
                           borderRadius: "4px",
-                          fontSize: "12px",
+                          fontSize: "11px",
                           fontWeight: "bold",
+                          textTransform: "uppercase",
                           backgroundColor:
                             log.activity === "SICK"
                               ? "#ffebee"
@@ -198,16 +253,17 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
                         {log.activity}
                       </span>
                     </td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>
+                    <td style={{ padding: "12px", textAlign: "center" }}>
                       <button
                         onClick={() => handleDelete(log.id)}
                         style={{
                           color: "#dc3545",
-                          border: "none",
+                          border: "1px solid #dc3545",
                           background: "none",
+                          padding: "3px 8px",
+                          borderRadius: "4px",
                           cursor: "pointer",
-                          fontSize: "12px",
-                          textDecoration: "underline",
+                          fontSize: "11px",
                         }}
                       >
                         Delete
@@ -220,12 +276,12 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
                   <td
                     colSpan="5"
                     style={{
-                      padding: "30px",
+                      padding: "40px",
                       textAlign: "center",
                       color: "#999",
                     }}
                   >
-                    No shifts logged yet for this tenant.
+                    No shifts logged yet for this month.
                   </td>
                 </tr>
               )}

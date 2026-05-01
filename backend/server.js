@@ -1,13 +1,30 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const { connectionString, ssl } = require("pg/lib/defaults");
+
+// const pool = new Pool({
+//   user: "bikashdas",
+//   host: "localhost",
+//   database: "divedb",
+//   password: "password", // change if needed
+//   port: 5432,
+// });
 
 const pool = new Pool({
-  user: "bikashdas",
-  host: "localhost",
-  database: "divedb",
-  password: "password", // change if needed
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+// Testing the connection immediately
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error("❌ Error acquiring client", err.stack);
+  }
+  console.log("✅ Successfully connected to Neon with channel_binding support");
+  release();
 });
 
 const app = express();
@@ -83,17 +100,18 @@ app.get("/employee/:tenantId", async (req, res) => {
 
 // Add new employee
 app.post("/employee", async (req, res) => {
-  const { name, phone, address, tenant_id } = req.body;
   try {
+    const { name, position, tenant_id } = req.body;
+
     const result = await pool.query(
-      `INSERT INTO employees (name, phone, address, tenant_id)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, phone, address, tenant_id],
+      "INSERT INTO employees (name, position, tenant_id) VALUES ($1, $2, $3) RETURNING *",
+      [name, position || "Staff", tenant_id],
     );
+
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error adding employee");
+    console.error(err.message);
+    res.status(500).send("Server Error");
   }
 });
 
@@ -222,6 +240,9 @@ app.get("/reports/detailed/:tenantId", async (req, res) => {
   }
 });
 
-app.listen(3000, "0.0.0.0", () => {
-  console.log("Server running on http://localhost:3000");
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Current working directory:", process.cwd());
+  console.log("Variables loaded:", process.env.DATABASE_URL ? "YES" : "NO");
+  console.log(`Server is running on port ${PORT}`);
 });
