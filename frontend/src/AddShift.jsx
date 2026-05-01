@@ -30,6 +30,9 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
       // Reset only employee field to allow quick multi-entry for the same day
       setForm({ ...form, employee_id: "" });
       fetchLogs();
+    } else {
+      const errorText = await res.text();
+      alert(errorText);
     }
   };
 

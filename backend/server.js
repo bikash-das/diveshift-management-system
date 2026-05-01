@@ -116,12 +116,34 @@ app.delete("/employee/:id", async (req, res) => {
 // Save a shift log (0.5 logic handled by reporting)
 app.post("/log", async (req, res) => {
   const { employee_id, date, shift, activity, tenant_id } = req.body;
+
+  // Basic validation
+  if (!employee_id || !date || !shift || !tenant_id) {
+    return res.status(400).send("Missing required fields");
+  }
+
   try {
+    // 1. Check if the entry already exists
+    const checkDuplicate = await pool.query(
+      `SELECT id FROM logs 
+       WHERE employee_id = $1 AND work_date = $2 AND shift = $3`,
+      [employee_id, date, shift],
+    );
+
+    if (checkDuplicate.rows.length > 0) {
+      // 2. If a row is returned, stop here and alert the user
+      return res
+        .status(400)
+        .send("Shift already logged for this employee on this date.");
+    }
+
+    // 3. If no duplicate, proceed with saving
     await pool.query(
       `INSERT INTO logs (employee_id, work_date, shift, activity, tenant_id)
        VALUES ($1, $2, $3, $4, $5)`,
       [employee_id, date, shift, activity, tenant_id],
     );
+
     res.send("Saved");
   } catch (err) {
     console.error(err);

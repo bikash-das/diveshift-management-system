@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
 
 export default function Reports({ API, tenant }) {
-  // 1. Setup Initial Date State
   const now = new Date();
   const [data, setData] = useState([]);
-  const [month, setMonth] = useState(now.getMonth() + 1); // 1-12
+  const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [loading, setLoading] = useState(false);
 
-  // 2. Generate Dynamic Year List (from 2024 to Current Year)
   const startYear = 2024;
   const currentYear = now.getFullYear();
   const years = [];
@@ -31,13 +29,11 @@ export default function Reports({ API, tenant }) {
     "December",
   ];
 
-  // 3. Fetch Data whenever tenant, month, or year changes
   useEffect(() => {
     const fetchReport = async () => {
       if (!tenant?.id) return;
       setLoading(true);
       try {
-        // Updated URL to use tenant.id
         const res = await fetch(
           `${API}/reports/detailed/${tenant.id}?month=${month}&year=${year}`,
         );
@@ -54,19 +50,25 @@ export default function Reports({ API, tenant }) {
     fetchReport();
   }, [API, tenant?.id, month, year]);
 
+  // Helper function - placed inside the component but BEFORE the return
+  const renderValue = (val) => {
+    const num = parseFloat(val);
+    return num > 0 ? num.toFixed(1) : <span style={{ color: "#ccc" }}>-</span>;
+  };
+
+  const isMonthEmpty =
+    data.length > 0 &&
+    data.every(
+      (row) =>
+        Number(row.normal_days) === 0 &&
+        Number(row.fridays) === 0 &&
+        Number(row.sick_days) === 0 &&
+        Number(row.off_days) === 0 &&
+        Number(row.public_holidays) === 0,
+    );
+
   return (
     <div style={{ marginTop: 20, fontFamily: "sans-serif" }}>
-      {/* Hide this header when printing */}
-      <style>
-        {`
-          @media print {
-            .no-print { display: none !important; }
-            table { border: 1px solid #000 !important; }
-            th, td { border: 1px solid #000 !important; color: #000 !important; }
-          }
-        `}
-      </style>
-
       <div
         style={{
           display: "flex",
@@ -81,18 +83,18 @@ export default function Reports({ API, tenant }) {
           onClick={() => window.print()}
           style={{
             padding: "8px 15px",
-            cursor: "pointer",
             backgroundColor: "#28a745",
             color: "white",
             border: "none",
             borderRadius: "4px",
+            cursor: "pointer",
           }}
         >
           Print Report
         </button>
       </div>
 
-      {/* FILTERS - Hidden on Print */}
+      {/* FILTERS */}
       <div
         className="no-print"
         style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
@@ -100,11 +102,7 @@ export default function Reports({ API, tenant }) {
         <select
           value={month}
           onChange={(e) => setMonth(parseInt(e.target.value))}
-          style={{
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid #ccc",
-          }}
+          style={{ padding: "8px" }}
         >
           {months.map((m, i) => (
             <option key={m} value={i + 1}>
@@ -112,15 +110,10 @@ export default function Reports({ API, tenant }) {
             </option>
           ))}
         </select>
-
         <select
           value={year}
           onChange={(e) => setYear(parseInt(e.target.value))}
-          style={{
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid #ccc",
-          }}
+          style={{ padding: "8px" }}
         >
           {years.map((y) => (
             <option key={y} value={y}>
@@ -128,17 +121,36 @@ export default function Reports({ API, tenant }) {
             </option>
           ))}
         </select>
-
         {loading && (
           <span
             style={{ alignSelf: "center", fontSize: "14px", color: "#666" }}
           >
-            Updating...
+            Loading...
           </span>
         )}
       </div>
 
-      {/* REPORT TABLE */}
+      {/* EXPLICIT NOTICE */}
+      {isMonthEmpty && !loading && (
+        <div
+          style={{
+            padding: "15px",
+            backgroundColor: "#fff3cd",
+            border: "1px solid #ffeeba",
+            color: "#856404",
+            borderRadius: "8px",
+            marginBottom: "20px",
+            textAlign: "center",
+          }}
+        >
+          <strong>No records found!</strong> There are no shifts logged for{" "}
+          <strong>
+            {months[month - 1]} {year}
+          </strong>
+          .
+        </div>
+      )}
+
       <div style={{ overflowX: "auto" }}>
         <table
           style={{
@@ -165,7 +177,7 @@ export default function Reports({ API, tenant }) {
                   textAlign: "center",
                 }}
               >
-                Normal Days
+                Normal
               </th>
               <th
                 style={{
@@ -206,50 +218,31 @@ export default function Reports({ API, tenant }) {
             </tr>
           </thead>
           <tbody>
-            {data.length > 0 ? (
-              data.map((row) => (
-                <tr key={row.name} style={{ borderBottom: "1px solid #ddd" }}>
-                  <td style={{ padding: "12px", fontWeight: "bold" }}>
-                    {row.name}
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    {parseFloat(row.normal_days).toFixed(1)}
-                  </td>
-                  <td style={{ textAlign: "center" }}>
-                    {parseFloat(row.fridays).toFixed(1)}
-                  </td>
-                  <td style={{ textAlign: "center", color: "#d9534f" }}>
-                    {parseFloat(row.sick_days).toFixed(1)}
-                  </td>
-                  <td style={{ textAlign: "center", color: "#6c757d" }}>
-                    {parseFloat(row.off_days).toFixed(1)}
-                  </td>
-                  <td style={{ textAlign: "center", color: "#007bff" }}>
-                    {parseFloat(row.public_holidays).toFixed(1)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="6"
-                  style={{
-                    padding: "20px",
-                    textAlign: "center",
-                    color: "#666",
-                  }}
-                >
-                  No logs found for {months[month - 1]} {year}
+            {data.map((row) => (
+              <tr key={row.name} style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "12px", fontWeight: "bold" }}>
+                  {row.name}
+                </td>
+                <td style={{ textAlign: "center" }}>
+                  {renderValue(row.normal_days)}
+                </td>
+                <td style={{ textAlign: "center" }}>
+                  {renderValue(row.fridays)}
+                </td>
+                <td style={{ textAlign: "center", color: "#d9534f" }}>
+                  {renderValue(row.sick_days)}
+                </td>
+                <td style={{ textAlign: "center", color: "#6c757d" }}>
+                  {renderValue(row.off_days)}
+                </td>
+                <td style={{ textAlign: "center", color: "#007bff" }}>
+                  {renderValue(row.public_holidays)}
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
-
-      <p style={{ fontSize: "12px", color: "#888", marginTop: "10px" }}>
-        * 1.0 = Full day (Both shifts), 0.5 = Half day (Single shift)
-      </p>
     </div>
   );
 }
