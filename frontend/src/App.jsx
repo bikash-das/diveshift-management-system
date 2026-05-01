@@ -6,28 +6,18 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem("loggedIn");
-    if (loggedIn === "true") {
+    const user = localStorage.getItem("user");
+    if (user) {
       setIsLoggedIn(true);
     }
   }, []);
 
-  const handleLogin = () => {
-    localStorage.setItem("loggedIn", "true");
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("loggedIn");
-    setIsLoggedIn(false);
-  };
-
   return (
     <>
       {isLoggedIn ? (
-        <Dashboard onLogout={handleLogout} />
+        <Dashboard onLogout={() => setIsLoggedIn(false)} />
       ) : (
-        <Login onLogin={handleLogin} />
+        <Login onLogin={() => setIsLoggedIn(true)} />
       )}
     </>
   );

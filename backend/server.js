@@ -24,9 +24,30 @@ app.post("/login", async (req, res) => {
   );
 
   if (result.rows.length > 0) {
+    console.log("User logged in: ", username);
     res.json(result.rows[0]);
   } else {
     res.status(401).send("Invalid");
+  }
+});
+
+app.post("/log", async (req, res) => {
+  const { employee_id, date, shift, activity, user_id } = req.body;
+  // Add validation
+  console.log("Saving...");
+  try {
+    await pool.query(
+      `
+      INSERT INTO logs (employee_id, work_date, shift, activity, user_id)
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [employee_id, date, shift, activity, user_id],
+    );
+
+    res.send("Saved");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error saving log");
   }
 });
 
@@ -49,6 +70,7 @@ app.post("/employee", async (req, res) => {
 
 app.get("/employees/:userId", async (req, res) => {
   const { userId } = req.params;
+  console.log("Userid: ", userId);
 
   const result = await pool.query("SELECT * FROM employees WHERE user_id=$1", [
     userId,

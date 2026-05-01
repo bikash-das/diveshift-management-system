@@ -4,12 +4,22 @@ export default function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    // todo simple check (for now)
-    if (username === "admin" && password === "1234") {
-      console.log("Login success");
+    const res = await fetch("http://localhost:3000/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      // 🔥 THIS LINE IS CRITICAL
+      localStorage.setItem("user", JSON.stringify(data));
+
       onLogin();
     } else {
       alert("Invalid credentials");
