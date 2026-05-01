@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-export default function AddShift({ API, user, employees, fetchLogs, logs }) {
+export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
   const [form, setForm] = useState({
     employee_id: "",
     date: new Date().toISOString().split("T")[0],
@@ -19,13 +19,17 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
     const res = await fetch(`${API}/log`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, user_id: user.id }),
+      // Changed user_id to tenant_id to match backend refactor
+      body: JSON.stringify({
+        ...form,
+        tenant_id: tenant.id,
+      }),
     });
 
     if (res.ok) {
-      // Reset form employee but keep date for faster entry
+      // Reset only employee field to allow quick multi-entry for the same day
       setForm({ ...form, employee_id: "" });
-      fetchLogs(); // Refresh the list below
+      fetchLogs();
     }
   };
 
@@ -49,9 +53,10 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
           padding: "15px",
           border: "1px solid #ddd",
           borderRadius: "8px",
+          backgroundColor: "#fff",
         }}
       >
-        <h3>Add Shift</h3>
+        <h3 style={{ marginTop: 0 }}>Add Shift</h3>
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}
@@ -59,7 +64,7 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
           <select
             value={form.employee_id}
             onChange={(e) => handleChange("employee_id", e.target.value)}
-            style={{ padding: "8px" }}
+            style={{ padding: "8px", borderRadius: "4px" }}
           >
             <option value="">Select Employee</option>
             {employees.map((emp) => (
@@ -73,7 +78,11 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
             type="date"
             value={form.date}
             onChange={(e) => handleChange("date", e.target.value)}
-            style={{ padding: "8px" }}
+            style={{
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+            }}
           />
 
           <select
@@ -106,6 +115,7 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
               border: "none",
               borderRadius: "4px",
               cursor: "pointer",
+              fontWeight: "bold",
             }}
           >
             Save Shift
@@ -115,10 +125,10 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
 
       {/* --- RECENT ENTRIES SECTION --- */}
       <div>
-        <h4>Recent Entries (Latest First)</h4>
+        <h4 style={{ marginBottom: "10px" }}>Recent Entries (Latest First)</h4>
         <div
           style={{
-            maxHeight: "400px",
+            maxHeight: "450px",
             overflowY: "auto",
             border: "1px solid #eee",
             borderRadius: "8px",
@@ -136,15 +146,15 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
                 position: "sticky",
                 top: 0,
                 backgroundColor: "#f8f9fa",
-                borderBottom: "2px solid #ddd",
+                zIndex: 1,
               }}
             >
-              <tr>
-                <th style={{ padding: "10px", textAlign: "left" }}>Date</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Name</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Shift</th>
-                <th style={{ padding: "10px", textAlign: "left" }}>Activity</th>
-                <th style={{ padding: "10px", textAlign: "center" }}>Action</th>
+              <tr style={{ borderBottom: "2px solid #ddd" }}>
+                <th style={{ padding: "12px", textAlign: "left" }}>Date</th>
+                <th style={{ padding: "12px", textAlign: "left" }}>Name</th>
+                <th style={{ padding: "12px", textAlign: "left" }}>Shift</th>
+                <th style={{ padding: "12px", textAlign: "left" }}>Activity</th>
+                <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -152,7 +162,8 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
                 logs.map((log) => (
                   <tr key={log.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: "10px" }}>
-                      {new Date(log.work_date).toLocaleDateString()}
+                      {/* Using locale string for consistent display */}
+                      {new Date(log.work_date).toLocaleDateString("en-GB")}
                     </td>
                     <td style={{ padding: "10px", fontWeight: "bold" }}>
                       {log.employee_name || "Staff"}
@@ -161,15 +172,24 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
                     <td style={{ padding: "10px" }}>
                       <span
                         style={{
-                          padding: "2px 6px",
+                          padding: "4px 8px",
                           borderRadius: "4px",
+                          fontSize: "12px",
+                          fontWeight: "bold",
                           backgroundColor:
                             log.activity === "SICK"
                               ? "#ffebee"
                               : log.activity === "OFF"
                                 ? "#f5f5f5"
-                                : "#e3f2fd",
-                          color: log.activity === "SICK" ? "#c62828" : "#333",
+                                : log.activity === "PH"
+                                  ? "#e0f7fa"
+                                  : "#e3f2fd",
+                          color:
+                            log.activity === "SICK"
+                              ? "#c62828"
+                              : log.activity === "PH"
+                                ? "#006064"
+                                : "#0d47a1",
                         }}
                       >
                         {log.activity}
@@ -183,7 +203,8 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
                           border: "none",
                           background: "none",
                           cursor: "pointer",
-                          fontWeight: "bold",
+                          fontSize: "12px",
+                          textDecoration: "underline",
                         }}
                       >
                         Delete
@@ -196,12 +217,12 @@ export default function AddShift({ API, user, employees, fetchLogs, logs }) {
                   <td
                     colSpan="5"
                     style={{
-                      padding: "20px",
+                      padding: "30px",
                       textAlign: "center",
                       color: "#999",
                     }}
                   >
-                    No shifts logged yet.
+                    No shifts logged yet for this tenant.
                   </td>
                 </tr>
               )}

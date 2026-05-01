@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function Reports({ API, user }) {
+export default function Reports({ API, tenant }) {
   // 1. Setup Initial Date State
   const now = new Date();
   const [data, setData] = useState([]);
@@ -31,14 +31,15 @@ export default function Reports({ API, user }) {
     "December",
   ];
 
-  // 3. Fetch Data whenever month or year changes
+  // 3. Fetch Data whenever tenant, month, or year changes
   useEffect(() => {
     const fetchReport = async () => {
-      if (!user?.id) return;
+      if (!tenant?.id) return;
       setLoading(true);
       try {
+        // Updated URL to use tenant.id
         const res = await fetch(
-          `${API}/reports/detailed/${user.id}?month=${month}&year=${year}`,
+          `${API}/reports/detailed/${tenant.id}?month=${month}&year=${year}`,
         );
         if (!res.ok) throw new Error("Network response was not ok");
         const result = await res.json();
@@ -51,10 +52,21 @@ export default function Reports({ API, user }) {
     };
 
     fetchReport();
-  }, [API, user?.id, month, year]);
+  }, [API, tenant?.id, month, year]);
 
   return (
     <div style={{ marginTop: 20, fontFamily: "sans-serif" }}>
+      {/* Hide this header when printing */}
+      <style>
+        {`
+          @media print {
+            .no-print { display: none !important; }
+            table { border: 1px solid #000 !important; }
+            th, td { border: 1px solid #000 !important; color: #000 !important; }
+          }
+        `}
+      </style>
+
       <div
         style={{
           display: "flex",
@@ -63,8 +75,9 @@ export default function Reports({ API, user }) {
           marginBottom: 20,
         }}
       >
-        <h3 style={{ margin: 0 }}>Attendance Report: {user.username}</h3>
+        <h3 style={{ margin: 0 }}>Attendance Report: {tenant?.username}</h3>
         <button
+          className="no-print"
           onClick={() => window.print()}
           style={{
             padding: "8px 15px",
@@ -79,8 +92,11 @@ export default function Reports({ API, user }) {
         </button>
       </div>
 
-      {/* FILTERS */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+      {/* FILTERS - Hidden on Print */}
+      <div
+        className="no-print"
+        style={{ display: "flex", gap: "10px", marginBottom: "20px" }}
+      >
         <select
           value={month}
           onChange={(e) => setMonth(parseInt(e.target.value))}
