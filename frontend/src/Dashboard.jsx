@@ -6,6 +6,7 @@ export default function Dashboard() {
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [employees, setEmployees] = useState([]);
+  const [logs, setLogs] = useState([]);
 
   const [form, setForm] = useState({
     employee_id: "",
@@ -14,7 +15,12 @@ export default function Dashboard() {
     activity: "DC",
   });
 
-  // 🔹 Fetch employees
+  const fetchLogs = async () => {
+    const res = await fetch(`${API}/logs/${user.id}`);
+    const data = await res.json();
+    setLogs(data);
+  };
+
   const fetchEmployees = async () => {
     const res = await fetch(`${API}/employees/${user.id}`);
     const data = await res.json();
@@ -30,7 +36,8 @@ export default function Dashboard() {
     }
 
     fetchEmployees();
-  }, []);
+    fetchLogs();
+  }, [user]);
 
   // 🔹 Handle form change
   const handleChange = (key, value) => {
@@ -67,6 +74,7 @@ export default function Dashboard() {
 
     if (res.ok) {
       alert("Saved!");
+      fetchLogs();
 
       // reset form
       setForm({
@@ -156,6 +164,28 @@ export default function Dashboard() {
           Save
         </button>
       </form>
+      <h3>Entries</h3>
+      <table border="1" cellPadding="5" style={{ width: "100%" }}>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Date</th>
+            <th>Shift</th>
+            <th>Activity</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {logs.map((row) => (
+            <tr key={row.id}>
+              <td>{row.name}</td>
+              <td>{row.work_date}</td>
+              <td>{row.shift}</td>
+              <td>{row.activity}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
