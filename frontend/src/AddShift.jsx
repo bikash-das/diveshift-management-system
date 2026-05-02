@@ -8,7 +8,6 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
     activity: "DC",
   });
 
-  // --- LOADING STATES ---
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -29,7 +28,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-auth-token": token, // Token Support
+          "x-auth-token": token,
         },
         body: JSON.stringify({
           ...form,
@@ -41,7 +40,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
 
       if (res.ok) {
         setForm({ ...form, employee_id: "" });
-        await fetchLogs(); // Refresh the list
+        await fetchLogs();
       } else {
         const errorText = await res.text();
         alert(errorText);
@@ -54,21 +53,17 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
   };
 
   const handleDelete = async (logId) => {
-    if (!window.confirm("Are you sure you want to delete this entry?")) return;
+    if (!window.confirm("Are you sure?")) return;
     if (!token) return;
 
-    setDeletingId(logId); // Start loading for this specific row
+    setDeletingId(logId);
     try {
       const res = await fetch(`${API}/log/${logId}`, {
         method: "DELETE",
-        headers: { "x-auth-token": token }, // Token Support
+        headers: { "x-auth-token": token },
       });
-
       if (res.status === 401) return window.location.reload();
-
-      if (res.ok) {
-        await fetchLogs();
-      }
+      if (res.ok) await fetchLogs();
     } catch (err) {
       console.error("Delete Error:", err);
     } finally {
@@ -77,14 +72,8 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "25px",
-        maxWidth: "900px",
-      }}
-    >
+    /* Added margin: "0 auto" and padding to fix alignment */
+    <div style={{ maxWidth: "900px", margin: "20px auto", padding: "0 10px" }}>
       {/* --- FORM SECTION --- */}
       <div style={styles.formCard}>
         <h3 style={{ marginTop: 0, marginBottom: "15px" }}>Add Shift</h3>
@@ -155,7 +144,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
       </div>
 
       {/* --- RECENT ENTRIES SECTION --- */}
-      <div>
+      <div style={{ marginTop: "25px" }}>
         <h4 style={{ marginBottom: "15px", color: "#333" }}>
           Recent Entries (Latest First)
         </h4>
@@ -208,7 +197,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
               ) : (
                 <tr>
                   <td colSpan="5" style={styles.emptyTd}>
-                    No shifts logged yet for this month.
+                    No shifts logged yet.
                   </td>
                 </tr>
               )}
@@ -220,7 +209,6 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
   );
 }
 
-// Helper for dynamic badge colors
 const getBadgeStyle = (activity) => {
   switch (activity) {
     case "SICK":

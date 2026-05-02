@@ -28,7 +28,6 @@ export default function Employees({ API, tenant, refreshEmployees }) {
     } catch (err) {
       console.error("Failed to fetch employees:", err);
     } finally {
-      // Small timeout to prevent flicker
       setTimeout(() => setIsLoading(false), 300);
     }
   }, [API, tenant?.id, token]);
@@ -81,7 +80,8 @@ export default function Employees({ API, tenant, refreshEmployees }) {
   };
 
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+    /* Alignment fix: margin: "20px auto" and padding added */
+    <div style={{ maxWidth: "900px", margin: "20px auto", padding: "0 10px" }}>
       {/* REGISTRATION FORM */}
       <div style={styles.formCard}>
         <h3 style={{ marginTop: 0 }}>Register New Staff</h3>
@@ -118,7 +118,9 @@ export default function Employees({ API, tenant, refreshEmployees }) {
       </div>
 
       {/* EMPLOYEES TABLE */}
-      <div style={{ position: "relative", minHeight: "200px" }}>
+      <div
+        style={{ position: "relative", minHeight: "200px", marginTop: "25px" }}
+      >
         <table style={styles.table}>
           <thead>
             <tr style={styles.theadRow}>
@@ -184,7 +186,6 @@ const styles = {
     padding: "20px",
     backgroundColor: "#f9f9f9",
     borderRadius: "8px",
-    marginBottom: "20px",
     border: "1px solid #ddd",
   },
   input: { padding: "8px", borderRadius: "4px", border: "1px solid #ccc" },
@@ -202,6 +203,7 @@ const styles = {
     backgroundColor: "white",
     borderRadius: "8px",
     overflow: "hidden",
+    border: "1px solid #eee",
   },
   theadRow: { backgroundColor: "#343a40", color: "white" },
   tr: { borderBottom: "1px solid #eee" },
@@ -218,8 +220,6 @@ const styles = {
     fontSize: "12px",
   },
   emptyTd: { padding: "30px", textAlign: "center", color: "#999" },
-
-  // SPINNER STYLES
   centerSpinner: {
     width: "40px",
     height: "40px",
