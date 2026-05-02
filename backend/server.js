@@ -1,225 +1,187 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
-const { connectionString, ssl } = require("pg/lib/defaults");
 
-// const pool = new Pool({
-//   user: "bikashdas",
-//   host: "localhost",
-//   database: "divedb",
-//   password: "password", // change if needed
-//   port: 5432,
-// });
-
-const pool = new Pool({
+/**
+ * 1. DATABASE CONFIGURATION & RESILIENCY
+ */
+const poolConfig = {
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+};
+
+let pool = new Pool(poolConfig);
+
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle client", err);
 });
-// Testing the connection immediately
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error("❌ Error acquiring client", err.stack);
+
+/**
+ * 2. AUTOMATIC RETRY WRAPPER
+ */
+const query = async (text, params) => {
+  try {
+    return await pool.query(text, params);
+  } catch (err) {
+    if (
+      err.message.includes("terminated unexpectedly") ||
+      err.message.includes("Connection terminated")
+    ) {
+      console.warn("Retrying query due to unexpected termination...");
+      return await pool.query(text, params);
+    }
+    throw err;
   }
-  console.log("✅ Successfully connected to Neon with channel_binding support");
-  release();
-});
+};
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 /**
- * TENANT AUTHENTICATION
+ * 3. MIDDLEWARE
  */
+const auth = (req, res, next) => {
+  const token = req.header("x-auth-token");
+  if (!token)
+    return res.status(401).json({ msg: "No token, authorization denied" });
 
-// Login - Returns tenant info
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
   try {
-    const result = await pool.query(
-      "SELECT id, username FROM tenants WHERE username=$1 AND password=$2",
-      [username, password],
-    );
-
-    if (result.rows.length > 0) {
-      console.log("Tenant logged in: ", username);
-      res.json(result.rows[0]);
-    } else {
-      res.status(401).send("Invalid credentials");
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.tenantId = decoded.id;
+    next();
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Login error");
+    res.status(401).json({ msg: "Token is not valid" });
   }
-});
-
-// Signup - Creates new tenant
-app.post("/signup", async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const existing = await pool.query(
-      "SELECT * FROM tenants WHERE username=$1",
-      [username],
-    );
-    if (existing.rows.length > 0) {
-      return res.status(400).send("Tenant already exists");
-    }
-
-    const result = await pool.query(
-      "INSERT INTO tenants (username, password) VALUES ($1, $2) RETURNING id, username",
-      [username, password],
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Signup error");
-  }
-});
+};
 
 /**
- * EMPLOYEE MANAGEMENT
+ * 4. ROUTES
  */
 
-// Get all employees for a tenant (sorted alphabetically)
-app.get("/employee/:tenantId", async (req, res) => {
-  const { tenantId } = req.params;
+// --- AUTHENTICATION ---
+app.post("/auth/login", async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const result = await pool.query(
+    const result = await query("SELECT * FROM tenants WHERE email = $1", [
+      email,
+    ]);
+    if (result.rows.length === 0)
+      return res.status(400).json({ msg: "Invalid credentials" });
+
+    const user = result.rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "24h",
+    });
+    res.json({ token, tenant: { id: user.id, name: user.name } });
+  } catch (err) {
+    console.error("Login Error:", err);
+    res.status(500).json({ msg: "Server error during login" });
+  }
+});
+
+// --- EMPLOYEE MANAGEMENT ---
+app.get("/employee/:tenantId", auth, async (req, res) => {
+  try {
+    const result = await query(
       "SELECT * FROM employees WHERE tenant_id=$1 ORDER BY name ASC",
-      [tenantId],
+      [req.params.tenantId],
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error fetching employees");
+    res.status(500).json({ msg: "Error fetching employees" });
   }
 });
 
-// Add new employee
-app.post("/employee", async (req, res) => {
+app.post("/employee", auth, async (req, res) => {
+  const { name, position, tenant_id } = req.body;
   try {
-    const { name, position, tenant_id } = req.body;
-
-    const result = await pool.query(
+    const result = await query(
       "INSERT INTO employees (name, position, tenant_id) VALUES ($1, $2, $3) RETURNING *",
       [name, position || "Staff", tenant_id],
     );
-
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server Error");
+    res.status(500).json({ msg: "Server Error" });
   }
 });
 
-// Delete employee
-app.delete("/employee/:id", async (req, res) => {
-  const { id } = req.params;
+app.delete("/employee/:id", auth, async (req, res) => {
   try {
-    await pool.query("DELETE FROM employees WHERE id = $1", [id]);
-    res.send("Deleted");
+    await query("DELETE FROM employees WHERE id = $1", [req.params.id]);
+    res.json({ msg: "Deleted" });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error deleting employee");
+    res.status(500).json({ msg: "Error deleting employee" });
   }
 });
 
-/**
- * SHIFT LOGGING
- */
-
-// Save a shift log (0.5 logic handled by reporting)
-app.post("/log", async (req, res) => {
+// --- SHIFT LOGGING ---
+app.post("/log", auth, async (req, res) => {
   const { employee_id, date, shift, activity, tenant_id } = req.body;
-
-  // Basic validation
-  if (!employee_id || !date || !shift || !tenant_id) {
-    return res.status(400).send("Missing required fields");
-  }
-
   try {
-    // 1. Check if the entry already exists
-    const checkDuplicate = await pool.query(
-      `SELECT id FROM logs 
-       WHERE employee_id = $1 AND work_date = $2 AND shift = $3`,
+    const checkDuplicate = await query(
+      "SELECT id FROM logs WHERE employee_id = $1 AND work_date = $2 AND shift = $3",
       [employee_id, date, shift],
     );
 
     if (checkDuplicate.rows.length > 0) {
-      // 2. If a row is returned, stop here and alert the user
-      return res
-        .status(400)
-        .send("Shift already logged for this employee on this date.");
+      return res.status(400).json({ msg: "Shift already logged." });
     }
 
-    // 3. If no duplicate, proceed with saving
-    await pool.query(
-      `INSERT INTO logs (employee_id, work_date, shift, activity, tenant_id)
-       VALUES ($1, $2, $3, $4, $5)`,
+    await query(
+      "INSERT INTO logs (employee_id, work_date, shift, activity, tenant_id) VALUES ($1, $2, $3, $4, $5)",
       [employee_id, date, shift, activity, tenant_id],
     );
-
-    res.send("Saved");
+    res.json({ msg: "Saved" });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error saving log");
+    res.status(500).json({ msg: "Error saving log" });
   }
 });
 
-// Get recent logs for AddShift page (latest first, includes names)
-app.get("/logs/:tenantId", async (req, res) => {
-  const { tenantId } = req.params;
+app.get("/logs/:tenantId", auth, async (req, res) => {
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT l.id, e.name as employee_name, l.work_date, l.shift, l.activity
        FROM logs l
        JOIN employees e ON e.id = l.employee_id
        WHERE l.tenant_id=$1
        ORDER BY l.work_date DESC, l.id DESC`,
-      [tenantId],
+      [req.params.tenantId],
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error fetching logs");
+    res.status(500).json({ msg: "Error fetching logs" });
   }
 });
 
-// Delete a specific log entry
-app.delete("/log/:id", async (req, res) => {
-  const { id } = req.params;
+app.delete("/log/:id", auth, async (req, res) => {
   try {
-    await pool.query("DELETE FROM logs WHERE id = $1", [id]);
-    res.send("Deleted");
+    await query("DELETE FROM logs WHERE id = $1", [req.params.id]);
+    res.json({ msg: "Deleted" });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error deleting log");
+    res.status(500).json({ msg: "Error deleting log" });
   }
 });
 
-/**
- * REPORTING (THE "BRAIN")
- */
-
-// Generates monthly report based on 0.5 shift calculation
-app.get("/reports/detailed/:tenantId", async (req, res) => {
+// --- REPORTING ---
+app.get("/reports/detailed/:tenantId", auth, async (req, res) => {
   const { tenantId } = req.params;
   const { month, year } = req.query;
-
   try {
-    const result = await pool.query(
+    const result = await query(
       `SELECT 
          e.name,
-         -- Sum 0.5 per shift entry for Normal Days (Mon-Thu, Sat-Sun)
          COALESCE(SUM(CASE WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) != 5 THEN 0.5 ELSE 0 END), 0) AS normal_days,
-         
-         -- Sum 0.5 per shift entry for Fridays
          COALESCE(SUM(CASE WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) = 5 THEN 0.5 ELSE 0 END), 0) AS fridays,
-         
-         -- Leave categories (assumed 0.5 per shift entry)
          COALESCE(SUM(CASE WHEN l.activity = 'SICK' THEN 0.5 ELSE 0 END), 0) AS sick_days,
          COALESCE(SUM(CASE WHEN l.activity = 'OFF' THEN 0.5 ELSE 0 END), 0) AS off_days,
          COALESCE(SUM(CASE WHEN l.activity = 'PH' THEN 0.5 ELSE 0 END), 0) AS public_holidays
@@ -232,17 +194,16 @@ app.get("/reports/detailed/:tenantId", async (req, res) => {
        ORDER BY e.name ASC`,
       [tenantId, month, year],
     );
-
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error generating report");
+    res.status(500).json({ msg: "Error generating report" });
   }
 });
 
+/**
+ * 5. SERVER INITIALIZATION
+ */
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("Current working directory:", process.cwd());
-  console.log("Variables loaded:", process.env.DATABASE_URL ? "YES" : "NO");
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });

@@ -1,77 +1,79 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import AddShift from "./AddShift";
 import Employees from "./Employees";
 import Reports from "./Reports";
 
-export default function Dashboard() {
-  const API = "http://localhost:3000";
-
-  // 1. Updated to check for 'tenant' in localStorage
-  const tenant = JSON.parse(localStorage.getItem("tenant"));
-
+export default function Dashboard({ onLogout, API }) {
+  // --- 1. STATE & DATA INITIALIZATION ---
   const [view, setView] = useState("shift");
   const [employees, setEmployees] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // 2. Fetch Employees using tenant_id logic
-  const fetchEmployees = async () => {
-    if (!tenant) return;
+  // Retrieve auth data from storage
+  const tenant = JSON.parse(localStorage.getItem("tenant"));
+  const token = localStorage.getItem("token");
+
+  // --- 2. SECURE FETCH WRAPPERS ---
+
+  // Using useCallback to prevent unnecessary re-renders
+  const fetchEmployees = useCallback(async () => {
+    if (!tenant || !token) return;
     try {
-      const res = await fetch(`${API}/employee/${tenant.id}`);
+      const res = await fetch(`${API}/employee/${tenant.id}`, {
+        headers: {
+          "Content-Type": "application/json",
+          "x-auth-token": token, // Required by your backend 'auth' middleware
+        },
+      });
+
+      if (res.status === 401) return onLogout(); // Token expired, kick to login
+
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
-      console.error("Error fetching employees:", err);
+      console.error("Dashboard: Error fetching employees:", err);
     }
-  };
+  }, [API, tenant?.id, token, onLogout]);
 
-  // 3. Fetch Logs (used by AddShift to show the recent entries)
-  const fetchLogs = async () => {
-    if (!tenant) return;
+  const fetchLogs = useCallback(async () => {
+    if (!tenant || !token) return;
     try {
-      const res = await fetch(`${API}/logs/${tenant.id}`);
+      const res = await fetch(`${API}/logs/${tenant.id}`, {
+        headers: { "x-auth-token": token },
+      });
       const data = await res.json();
       setLogs(data);
     } catch (err) {
-      console.error("Error fetching logs:", err);
+      console.error("Dashboard: Error fetching logs:", err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [API, tenant?.id, token]);
 
-  // 4. Load initial data on mount
+  // --- 3. LIFECYCLE ---
   useEffect(() => {
-    if (!tenant) return;
-    fetchEmployees();
-    fetchLogs();
-  }, []);
+    if (!tenant || !token) {
+      onLogout(); // Guard clause: if data is missing, go to login
+    } else {
+      fetchEmployees();
+      fetchLogs();
+    }
+  }, [fetchEmployees, fetchLogs, tenant, token, onLogout]);
 
-  const handleLogout = () => {
-    // 5. Clear the correct localStorage key
-    localStorage.removeItem("tenant");
-    window.location.reload();
-  };
-
-  if (!tenant) return <p>Access Denied. Please log in.</p>;
+  // --- 4. RENDER HELPERS ---
+  if (!tenant) return null;
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
-      {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          backgroundColor: "#f8f9fa",
-          padding: "10px 20px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-        }}
-      >
-        <h2 style={{ margin: 0, color: "#333" }}>
-          DiveShift |{" "}
-          <span style={{ color: "#007bff" }}>{tenant.username}</span>
-        </h2>
+    <div style={styles.dashboardContainer}>
+      {/* NAVIGATION BAR */}
+      <nav style={styles.navbar}>
+        <div style={styles.brand}>
+          <span style={styles.logoText}>DiveShift</span>
+          <span style={styles.tenantTag}>{tenant.name}</span>
+        </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={styles.navLinks}>
           <button
             onClick={() => setView("shift")}
             style={navButtonStyle(view === "shift")}
@@ -90,55 +92,119 @@ export default function Dashboard() {
           >
             Reports
           </button>
-          <button
-            onClick={handleLogout}
-            style={{
-              ...navButtonStyle(false),
-              backgroundColor: "#dc3545",
-              color: "white",
-            }}
-          >
+          <button onClick={onLogout} style={styles.logoutBtn}>
             Logout
           </button>
         </div>
-      </div>
+      </nav>
 
-      <hr style={{ border: "0.5px solid #eee", marginBottom: "20px" }} />
+      {/* MAIN CONTENT AREA */}
+      <main style={styles.contentArea}>
+        {loading ? (
+          <div style={styles.loader}>Loading Dashboard...</div>
+        ) : (
+          <>
+            {view === "shift" && (
+              <AddShift
+                API={API}
+                tenant={tenant}
+                employees={employees}
+                fetchLogs={fetchLogs}
+                logs={logs}
+              />
+            )}
 
-      {/* CONTENT AREA */}
-      <div style={{ minHeight: "60vh" }}>
-        {view === "shift" && (
-          <AddShift
-            API={API}
-            tenant={tenant}
-            employees={employees}
-            fetchLogs={fetchLogs}
-            logs={logs}
-          />
+            {view === "employees" && (
+              <Employees
+                API={API}
+                tenant={tenant}
+                refreshEmployees={fetchEmployees}
+                employees={employees}
+              />
+            )}
+
+            {view === "reports" && <Reports API={API} tenant={tenant} />}
+          </>
         )}
-
-        {view === "employees" && (
-          <Employees
-            API={API}
-            tenant={tenant}
-            refreshEmployees={fetchEmployees}
-          />
-        )}
-
-        {view === "reports" && <Reports API={API} tenant={tenant} />}
-      </div>
+      </main>
     </div>
   );
 }
 
-// Simple helper for navigation button styling
+// --- 5. STYLING ---
+
 const navButtonStyle = (isActive) => ({
-  padding: "8px 16px",
+  padding: "10px 18px",
   cursor: "pointer",
   border: "none",
-  borderRadius: "4px",
-  backgroundColor: isActive ? "#007bff" : "#e0e0e0",
-  color: isActive ? "white" : "#333",
-  fontWeight: "bold",
-  transition: "0.2s",
+  borderRadius: "6px",
+  backgroundColor: isActive ? "#007bff" : "transparent",
+  color: isActive ? "white" : "#555",
+  fontWeight: "600",
+  fontSize: "14px",
+  transition: "all 0.2s ease",
 });
+
+const styles = {
+  dashboardContainer: {
+    minHeight: "100vh",
+    backgroundColor: "#f4f7f9",
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  },
+  navbar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "15px 40px",
+    backgroundColor: "#ffffff",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+  },
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  logoText: {
+    fontSize: "20px",
+    fontWeight: "bold",
+    color: "#333",
+    letterSpacing: "-0.5px",
+  },
+  tenantTag: {
+    fontSize: "12px",
+    backgroundColor: "#e7f3ff",
+    color: "#007bff",
+    padding: "4px 10px",
+    borderRadius: "20px",
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  navLinks: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+  },
+  logoutBtn: {
+    marginLeft: "10px",
+    padding: "10px 18px",
+    backgroundColor: "#fff",
+    color: "#dc3545",
+    border: "1px solid #dc3545",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "600",
+  },
+  contentArea: {
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "30px",
+  },
+  loader: {
+    textAlign: "center",
+    marginTop: "50px",
+    color: "#888",
+  },
+};
