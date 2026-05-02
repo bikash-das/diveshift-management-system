@@ -5,9 +5,6 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
 
-/**
- * 1. DATABASE CONFIGURATION & RESILIENCY
- */
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -22,9 +19,6 @@ pool.on("error", (err) => {
   console.error("Unexpected error on idle client", err);
 });
 
-/**
- * 2. AUTOMATIC RETRY WRAPPER
- */
 const query = async (text, params) => {
   try {
     return await pool.query(text, params);
@@ -44,9 +38,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/**
- * 3. MIDDLEWARE
- */
 const auth = (req, res, next) => {
   const token = req.header("x-auth-token");
   if (!token)
@@ -61,10 +52,6 @@ const auth = (req, res, next) => {
   }
 };
 
-/**
- * 4. ROUTES
- */
-
 // --- AUTHENTICATION ---
 app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -72,16 +59,23 @@ app.post("/auth/login", async (req, res) => {
     const result = await query("SELECT * FROM tenants WHERE email = $1", [
       email,
     ]);
-    if (result.rows.length === 0)
+    if (result.rows.length === 0) {
+      console.log(`Failed login attempt for email: ${email}`);
       return res.status(400).json({ msg: "Invalid credentials" });
+    }
 
     const user = result.rows[0];
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
+    if (!isMatch) {
+      console.log(`Incorrect password for email: ${email}`);
+      return res.status(400).json({ msg: "Invalid credentials" });
+    }
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: "24h",
     });
+
+    console.log(`Login successful: Tenant ${user.name} (ID: ${user.id})`);
     res.json({ token, tenant: { id: user.id, name: user.name } });
   } catch (err) {
     console.error("Login Error:", err);
@@ -109,8 +103,13 @@ app.post("/employee", auth, async (req, res) => {
       "INSERT INTO employees (name, position, tenant_id) VALUES ($1, $2, $3) RETURNING *",
       [name, position || "Staff", tenant_id],
     );
+
+    console.log(
+      `Employee Added: ${name} (Position: ${position}) for Tenant ID: ${tenant_id}`,
+    );
     res.json(result.rows[0]);
   } catch (err) {
+    console.error("Add Employee Error:", err);
     res.status(500).json({ msg: "Server Error" });
   }
 });
@@ -118,8 +117,12 @@ app.post("/employee", auth, async (req, res) => {
 app.delete("/employee/:id", auth, async (req, res) => {
   try {
     await query("DELETE FROM employees WHERE id = $1", [req.params.id]);
+    console.log(
+      `Employee Deleted: ID ${req.params.id} by Tenant ID: ${req.tenantId}`,
+    );
     res.json({ msg: "Deleted" });
   } catch (err) {
+    console.error("Delete Employee Error:", err);
     res.status(500).json({ msg: "Error deleting employee" });
   }
 });
@@ -141,8 +144,13 @@ app.post("/log", auth, async (req, res) => {
       "INSERT INTO logs (employee_id, work_date, shift, activity, tenant_id) VALUES ($1, $2, $3, $4, $5)",
       [employee_id, date, shift, activity, tenant_id],
     );
+
+    console.log(
+      `Shift Logged: Emp ${employee_id}, Date ${date}, ${shift}-${activity}`,
+    );
     res.json({ msg: "Saved" });
   } catch (err) {
+    console.error("Shift Log Error:", err);
     res.status(500).json({ msg: "Error saving log" });
   }
 });
@@ -166,8 +174,12 @@ app.get("/logs/:tenantId", auth, async (req, res) => {
 app.delete("/log/:id", auth, async (req, res) => {
   try {
     await query("DELETE FROM logs WHERE id = $1", [req.params.id]);
+    console.log(
+      `Log Entry Deleted: ID ${req.params.id} by Tenant ID: ${req.tenantId}`,
+    );
     res.json({ msg: "Deleted" });
   } catch (err) {
+    console.error("Delete Log Error:", err);
     res.status(500).json({ msg: "Error deleting log" });
   }
 });
@@ -194,16 +206,16 @@ app.get("/reports/detailed/:tenantId", auth, async (req, res) => {
        ORDER BY e.name ASC`,
       [tenantId, month, year],
     );
+
+    console.log(`Report Generated: Tenant ${tenantId} for ${month}/${year}`);
     res.json(result.rows);
   } catch (err) {
+    console.error("Report Generation Error:", err);
     res.status(500).json({ msg: "Error generating report" });
   }
 });
 
-/**
- * 5. SERVER INITIALIZATION
- */
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

@@ -72,7 +72,6 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
   };
 
   return (
-    /* Added margin: "0 auto" and padding to fix alignment */
     <div style={{ maxWidth: "900px", margin: "20px auto", padding: "0 10px" }}>
       {/* --- FORM SECTION --- */}
       <div style={styles.formCard}>
@@ -163,14 +162,22 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
               {logs && logs.length > 0 ? (
                 logs.map((log) => (
                   <tr key={log.id} style={styles.tr}>
-                    <td style={styles.tdDate}>
+                    <td
+                      style={{ ...styles.td, ...styles.tdDate, width: "20%" }}
+                    >
                       {new Date(log.work_date).toLocaleDateString("en-GB")}
                     </td>
-                    <td style={styles.tdName}>
+                    <td
+                      style={{ ...styles.td, ...styles.tdName, width: "30%" }}
+                    >
                       {log.employee_name || "Staff"}
                     </td>
-                    <td style={styles.tdBold}>{log.shift}</td>
-                    <td style={styles.td}>
+                    <td
+                      style={{ ...styles.td, ...styles.tdBold, width: "15%" }}
+                    >
+                      {log.shift}
+                    </td>
+                    <td style={{ ...styles.td, width: "20%" }}>
                       <span
                         style={{
                           ...styles.badge,
@@ -180,7 +187,9 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
                         {log.activity}
                       </span>
                     </td>
-                    <td style={styles.tdCenter}>
+                    <td
+                      style={{ ...styles.td, ...styles.tdCenter, width: "15%" }}
+                    >
                       <button
                         onClick={() => handleDelete(log.id)}
                         disabled={deletingId === log.id}
@@ -245,7 +254,12 @@ const styles = {
     borderRadius: "8px",
     backgroundColor: "white",
   },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: "14px" },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "14px",
+    tableLayout: "fixed", // Ensures width percentages are respected
+  },
   thead: {
     position: "sticky",
     top: 0,
@@ -253,14 +267,26 @@ const styles = {
     color: "white",
     zIndex: 1,
   },
-  th: { padding: "12px", textAlign: "left" },
-  thCenter: { padding: "12px", textAlign: "center" },
+  th: {
+    padding: "12px 15px", // Increased horizontal padding
+    textAlign: "left",
+    fontWeight: "600",
+  },
+  thCenter: {
+    padding: "12px 15px",
+    textAlign: "center",
+    fontWeight: "600",
+  },
   tr: { borderBottom: "1px solid #eee" },
-  td: { padding: "12px" },
-  tdDate: { padding: "12px", color: "#666" },
-  tdName: { padding: "12px", fontWeight: "500" },
-  tdBold: { padding: "12px", fontWeight: "bold", color: "#444" },
-  tdCenter: { padding: "12px", textAlign: "center" },
+  td: {
+    padding: "12px 15px", // Match TH padding exactly
+    textAlign: "left",
+    verticalAlign: "middle",
+  },
+  tdDate: { color: "#666" },
+  tdName: { fontWeight: "500" },
+  tdBold: { fontWeight: "bold", color: "#444" },
+  tdCenter: { textAlign: "center" },
   badge: {
     padding: "4px 8px",
     borderRadius: "4px",
