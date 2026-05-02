@@ -4,16 +4,15 @@ export default function Employees({ API, tenant, refreshEmployees }) {
   const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState({ name: "", position: "" });
 
-  // --- LOADING STATES ---
-  const [isLoading, setIsLoading] = useState(false); // For initial table load
-  const [isSubmitting, setIsSubmitting] = useState(false); // For "Add Staff" button
-  const [deletingId, setDeletingId] = useState(null); // Tracks which row is being deleted
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const token = localStorage.getItem("token");
 
   const fetchEmployees = useCallback(async () => {
     if (!tenant?.id || !token) return;
-    setIsLoading(true); // Start loading table
+    setIsLoading(true);
     try {
       const res = await fetch(`${API}/employee/${tenant.id}`, {
         headers: { "x-auth-token": token },
@@ -29,7 +28,8 @@ export default function Employees({ API, tenant, refreshEmployees }) {
     } catch (err) {
       console.error("Failed to fetch employees:", err);
     } finally {
-      setIsLoading(false); // Stop loading table
+      // Small timeout to prevent flicker
+      setTimeout(() => setIsLoading(false), 300);
     }
   }, [API, tenant?.id, token]);
 
@@ -39,9 +39,7 @@ export default function Employees({ API, tenant, refreshEmployees }) {
 
   const handleAdd = async () => {
     if (!form.name) return alert("Employee name is required");
-    if (!token) return alert("Session expired. Please log in.");
-
-    setIsSubmitting(true); // Disable button and show "Adding..."
+    setIsSubmitting(true);
     try {
       const res = await fetch(`${API}/employee`, {
         method: "POST",
@@ -49,10 +47,7 @@ export default function Employees({ API, tenant, refreshEmployees }) {
           "Content-Type": "application/json",
           "x-auth-token": token,
         },
-        body: JSON.stringify({
-          ...form,
-          tenant_id: tenant.id,
-        }),
+        body: JSON.stringify({ ...form, tenant_id: tenant.id }),
       });
 
       if (res.status === 401) return window.location.reload();
@@ -61,37 +56,27 @@ export default function Employees({ API, tenant, refreshEmployees }) {
         setForm({ name: "", position: "" });
         await fetchEmployees();
         if (refreshEmployees) refreshEmployees();
-      } else {
-        const error = await res.json();
-        alert(error.msg || "Error adding employee");
       }
-    } catch (err) {
-      console.error("Add Error:", err);
     } finally {
-      setIsSubmitting(false); // Re-enable button
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
-
-    setDeletingId(id); // Set the ID to show loading on a specific row
+    setDeletingId(id);
     try {
       const res = await fetch(`${API}/employee/${id}`, {
         method: "DELETE",
         headers: { "x-auth-token": token },
       });
-
       if (res.status === 401) return window.location.reload();
-
       if (res.ok) {
         await fetchEmployees();
         if (refreshEmployees) refreshEmployees();
       }
-    } catch (err) {
-      console.error("Delete Error:", err);
     } finally {
-      setDeletingId(null); // Clear loading state
+      setDeletingId(null);
     }
   };
 
@@ -124,58 +109,72 @@ export default function Employees({ API, tenant, refreshEmployees }) {
               cursor: isSubmitting ? "not-allowed" : "pointer",
             }}
           >
-            {isSubmitting ? "Saving..." : "Add Staff"}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {isSubmitting && <div style={styles.miniSpinner}></div>}
+              {isSubmitting ? "Saving..." : "Add Staff"}
+            </div>
           </button>
         </div>
       </div>
 
       {/* EMPLOYEES TABLE */}
-      <table style={styles.table}>
-        <thead>
-          <tr style={styles.theadRow}>
-            <th style={{ padding: "12px", textAlign: "left" }}>Name</th>
-            <th style={{ padding: "12px", textAlign: "left" }}>Position</th>
-            <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <tr>
-              <td
-                colSpan="3"
-                style={{ padding: "40px", textAlign: "center", color: "#666" }}
-              >
-                <div className="spinner">Loading staff list...</div>
-              </td>
+      <div style={{ position: "relative", minHeight: "200px" }}>
+        <table style={styles.table}>
+          <thead>
+            <tr style={styles.theadRow}>
+              <th style={{ padding: "12px", textAlign: "left" }}>Name</th>
+              <th style={{ padding: "12px", textAlign: "left" }}>Position</th>
+              <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
             </tr>
-          ) : employees.length > 0 ? (
-            employees.map((emp) => (
-              <tr key={emp.id} style={styles.tr}>
-                <td style={styles.tdName}>{emp.name}</td>
-                <td style={styles.td}>{emp.position || "Staff"}</td>
-                <td style={styles.tdCenter}>
-                  <button
-                    onClick={() => handleDelete(emp.id)}
-                    disabled={deletingId === emp.id}
+          </thead>
+          <tbody style={{ opacity: isLoading ? 0.5 : 1 }}>
+            {isLoading ? (
+              <tr>
+                <td
+                  colSpan="3"
+                  style={{ padding: "50px", textAlign: "center" }}
+                >
+                  <div style={styles.centerSpinner}></div>
+                  <p
                     style={{
-                      ...styles.delBtn,
-                      opacity: deletingId === emp.id ? 0.5 : 1,
+                      color: "#007bff",
+                      marginTop: "10px",
+                      fontWeight: "600",
                     }}
                   >
-                    {deletingId === emp.id ? "..." : "Remove"}
-                  </button>
+                    Loading staff...
+                  </p>
                 </td>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="3" style={styles.emptyTd}>
-                No employees registered.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            ) : employees.length > 0 ? (
+              employees.map((emp) => (
+                <tr key={emp.id} style={styles.tr}>
+                  <td style={styles.tdName}>{emp.name}</td>
+                  <td style={styles.td}>{emp.position || "Staff"}</td>
+                  <td style={styles.tdCenter}>
+                    <button
+                      onClick={() => handleDelete(emp.id)}
+                      disabled={deletingId === emp.id}
+                      style={{
+                        ...styles.delBtn,
+                        opacity: deletingId === emp.id ? 0.5 : 1,
+                      }}
+                    >
+                      {deletingId === emp.id ? "..." : "Remove"}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="3" style={styles.emptyTd}>
+                  No employees registered.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -219,4 +218,23 @@ const styles = {
     fontSize: "12px",
   },
   emptyTd: { padding: "30px", textAlign: "center", color: "#999" },
+
+  // SPINNER STYLES
+  centerSpinner: {
+    width: "40px",
+    height: "40px",
+    margin: "0 auto",
+    border: "4px solid #f3f3f3",
+    borderTop: "4px solid #007bff",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
+  },
+  miniSpinner: {
+    width: "14px",
+    height: "14px",
+    border: "2px solid #ffffff",
+    borderTop: "2px solid transparent",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
+  },
 };

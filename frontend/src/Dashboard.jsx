@@ -84,7 +84,7 @@ export default function Dashboard({ onLogout, API }) {
             onClick={() => setView("employees")}
             style={navButtonStyle(view === "employees")}
           >
-            Employees
+            Staffs
           </button>
           <button
             onClick={() => setView("reports")}
