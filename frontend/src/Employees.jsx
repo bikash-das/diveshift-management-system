@@ -4,19 +4,23 @@ export default function Employees({ API, tenant, refreshEmployees }) {
   const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState({ name: "", position: "" });
 
-  // Get the token from local storage
+  // --- LOADING STATES ---
+  const [isLoading, setIsLoading] = useState(false); // For initial table load
+  const [isSubmitting, setIsSubmitting] = useState(false); // For "Add Staff" button
+  const [deletingId, setDeletingId] = useState(null); // Tracks which row is being deleted
+
   const token = localStorage.getItem("token");
 
-  // 1. Fetch Employees (Wrapped in useCallback for stability)
   const fetchEmployees = useCallback(async () => {
     if (!tenant?.id || !token) return;
+    setIsLoading(true); // Start loading table
     try {
       const res = await fetch(`${API}/employee/${tenant.id}`, {
-        headers: { "x-auth-token": token }, // Token Support
+        headers: { "x-auth-token": token },
       });
 
       if (res.status === 401) {
-        window.location.reload(); // Refresh triggers App.js session check
+        window.location.reload();
         return;
       }
 
@@ -24,6 +28,8 @@ export default function Employees({ API, tenant, refreshEmployees }) {
       setEmployees(data);
     } catch (err) {
       console.error("Failed to fetch employees:", err);
+    } finally {
+      setIsLoading(false); // Stop loading table
     }
   }, [API, tenant?.id, token]);
 
@@ -31,17 +37,17 @@ export default function Employees({ API, tenant, refreshEmployees }) {
     fetchEmployees();
   }, [fetchEmployees]);
 
-  // 2. Add Employee
   const handleAdd = async () => {
     if (!form.name) return alert("Employee name is required");
     if (!token) return alert("Session expired. Please log in.");
 
+    setIsSubmitting(true); // Disable button and show "Adding..."
     try {
       const res = await fetch(`${API}/employee`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-auth-token": token, // Token Support
+          "x-auth-token": token,
         },
         body: JSON.stringify({
           ...form,
@@ -53,7 +59,7 @@ export default function Employees({ API, tenant, refreshEmployees }) {
 
       if (res.ok) {
         setForm({ name: "", position: "" });
-        fetchEmployees();
+        await fetchEmployees();
         if (refreshEmployees) refreshEmployees();
       } else {
         const error = await res.json();
@@ -61,93 +67,109 @@ export default function Employees({ API, tenant, refreshEmployees }) {
       }
     } catch (err) {
       console.error("Add Error:", err);
+    } finally {
+      setIsSubmitting(false); // Re-enable button
     }
   };
 
-  // 3. Delete Employee
   const handleDelete = async (id) => {
-    if (
-      !window.confirm("Are you sure? This will not delete their previous logs.")
-    )
-      return;
+    if (!window.confirm("Are you sure?")) return;
 
+    setDeletingId(id); // Set the ID to show loading on a specific row
     try {
       const res = await fetch(`${API}/employee/${id}`, {
         method: "DELETE",
-        headers: { "x-auth-token": token }, // Token Support
+        headers: { "x-auth-token": token },
       });
 
       if (res.status === 401) return window.location.reload();
 
       if (res.ok) {
-        fetchEmployees();
+        await fetchEmployees();
         if (refreshEmployees) refreshEmployees();
       }
     } catch (err) {
       console.error("Delete Error:", err);
+    } finally {
+      setDeletingId(null); // Clear loading state
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString.replace(" ", "T"));
-    return isNaN(date.getTime())
-      ? dateString.split(" ")[0]
-      : date.toLocaleDateString("en-GB");
   };
 
   return (
     <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+      {/* REGISTRATION FORM */}
       <div style={styles.formCard}>
         <h3 style={{ marginTop: 0 }}>Register New Staff</h3>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <input
             placeholder="Full Name"
             value={form.name}
+            disabled={isSubmitting}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             style={{ ...styles.input, flex: "2" }}
           />
           <input
-            placeholder="Position (e.g. Instructor)"
+            placeholder="Position"
             value={form.position}
+            disabled={isSubmitting}
             onChange={(e) => setForm({ ...form, position: e.target.value })}
             style={{ ...styles.input, flex: "1" }}
           />
-          <button onClick={handleAdd} style={styles.addBtn}>
-            Add Staff
+          <button
+            onClick={handleAdd}
+            disabled={isSubmitting}
+            style={{
+              ...styles.addBtn,
+              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting ? "not-allowed" : "pointer",
+            }}
+          >
+            {isSubmitting ? "Saving..." : "Add Staff"}
           </button>
         </div>
       </div>
 
+      {/* EMPLOYEES TABLE */}
       <table style={styles.table}>
         <thead>
           <tr style={styles.theadRow}>
             <th style={{ padding: "12px", textAlign: "left" }}>Name</th>
             <th style={{ padding: "12px", textAlign: "left" }}>Position</th>
-            <th style={{ padding: "12px", textAlign: "left" }}>Joined</th>
             <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
           </tr>
         </thead>
         <tbody>
-          {employees.length > 0 ? (
+          {isLoading ? (
+            <tr>
+              <td
+                colSpan="3"
+                style={{ padding: "40px", textAlign: "center", color: "#666" }}
+              >
+                <div className="spinner">Loading staff list...</div>
+              </td>
+            </tr>
+          ) : employees.length > 0 ? (
             employees.map((emp) => (
               <tr key={emp.id} style={styles.tr}>
                 <td style={styles.tdName}>{emp.name}</td>
                 <td style={styles.td}>{emp.position || "Staff"}</td>
-                <td style={styles.tdDate}>{formatDate(emp.created_at)}</td>
                 <td style={styles.tdCenter}>
                   <button
                     onClick={() => handleDelete(emp.id)}
-                    style={styles.delBtn}
+                    disabled={deletingId === emp.id}
+                    style={{
+                      ...styles.delBtn,
+                      opacity: deletingId === emp.id ? 0.5 : 1,
+                    }}
                   >
-                    Remove
+                    {deletingId === emp.id ? "..." : "Remove"}
                   </button>
                 </td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan="4" style={styles.emptyTd}>
+              <td colSpan="3" style={styles.emptyTd}>
                 No employees registered.
               </td>
             </tr>
@@ -158,7 +180,6 @@ export default function Employees({ API, tenant, refreshEmployees }) {
   );
 }
 
-// Clean internal styles
 const styles = {
   formCard: {
     padding: "20px",
@@ -174,7 +195,6 @@ const styles = {
     color: "white",
     border: "none",
     borderRadius: "4px",
-    cursor: "pointer",
     fontWeight: "bold",
   },
   table: {
@@ -188,12 +208,6 @@ const styles = {
   tr: { borderBottom: "1px solid #eee" },
   tdName: { padding: "12px", textAlign: "left", fontWeight: "500" },
   td: { padding: "12px", textAlign: "left", color: "#444" },
-  tdDate: {
-    padding: "12px",
-    textAlign: "left",
-    color: "#666",
-    fontSize: "14px",
-  },
   tdCenter: { padding: "12px", textAlign: "center" },
   delBtn: {
     color: "#dc3545",
