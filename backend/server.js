@@ -79,7 +79,7 @@ app.post("/auth/login", async (req, res) => {
     res.json({ token, tenant: { id: user.id, name: user.name } });
   } catch (err) {
     console.error("Login Error:", err);
-    res.status(500).json({ msg: "Server error during login" });
+    res.status(500).json({ msg: `Server error during login: ${err?.message}` });
   }
 });
 
@@ -130,23 +130,47 @@ app.delete("/employee/:id", auth, async (req, res) => {
 // --- SHIFT LOGGING ---
 app.post("/log", auth, async (req, res) => {
   const { employee_id, date, shift, activity, tenant_id } = req.body;
+
   try {
-    const checkDuplicate = await query(
-      "SELECT id FROM logs WHERE employee_id = $1 AND work_date = $2 AND shift = $3",
-      [employee_id, date, shift],
+    // 1. Fetch all existing shifts for this employee on this specific date
+    const existingShifts = await query(
+      "SELECT shift FROM logs WHERE employee_id = $1 AND work_date = $2",
+      [employee_id, date],
     );
 
-    if (checkDuplicate.rows.length > 0) {
-      return res.status(400).json({ msg: "Shift already logged." });
+    const shifts = existingShifts.rows.map((r) => r.shift);
+
+    // 2. Perform Validation Checks
+
+    // Check if a Full Day is already logged
+    if (shifts.includes("Full Day")) {
+      return res.status(400).json({
+        msg: "A Full Day is already logged for this date. Remove it to add specific shifts.",
+      });
     }
 
+    // If user is trying to add a Full Day, check if ANY shift already exists
+    if (shift === "Full Day" && shifts.length > 0) {
+      return res.status(400).json({
+        msg: "Cannot add a Full Day because shifts (S1/S2) are already logged for this date.",
+      });
+    }
+
+    // Check for exact duplicate (e.g., trying to add S1 when S1 already exists)
+    if (shifts.includes(shift)) {
+      return res
+        .status(400)
+        .json({ msg: `Shift ${shift} is already logged for this date.` });
+    }
+
+    // 3. If all checks pass, proceed with INSERT
     await query(
       "INSERT INTO logs (employee_id, work_date, shift, activity, tenant_id) VALUES ($1, $2, $3, $4, $5)",
       [employee_id, date, shift, activity, tenant_id],
     );
 
     console.log(
-      `Shift Logged: Emp ${employee_id}, Date ${date}, ${shift}-${activity}`,
+      `Shift Saved: Emp ${employee_id}, Date ${date}, ${shift}-${activity}`,
     );
     res.json({ msg: "Saved" });
   } catch (err) {
@@ -192,11 +216,36 @@ app.get("/reports/detailed/:tenantId", auth, async (req, res) => {
     const result = await query(
       `SELECT 
          e.name,
-         COALESCE(SUM(CASE WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) != 5 THEN 0.5 ELSE 0 END), 0) AS normal_days,
-         COALESCE(SUM(CASE WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) = 5 THEN 0.5 ELSE 0 END), 0) AS fridays,
-         COALESCE(SUM(CASE WHEN l.activity = 'SICK' THEN 0.5 ELSE 0 END), 0) AS sick_days,
-         COALESCE(SUM(CASE WHEN l.activity = 'OFF' THEN 0.5 ELSE 0 END), 0) AS off_days,
-         COALESCE(SUM(CASE WHEN l.activity = 'PH' THEN 0.5 ELSE 0 END), 0) AS public_holidays
+         -- Normal Days (Excluding Fridays)
+         COALESCE(SUM(CASE 
+           WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) != 5 THEN 
+             (CASE WHEN l.shift = 'Full Day' THEN 1.0 ELSE 0.5 END)
+           ELSE 0 END), 0) AS normal_days,
+         
+         -- Fridays
+         COALESCE(SUM(CASE 
+           WHEN l.activity IN ('DC', 'SNK') AND EXTRACT(DOW FROM l.work_date) = 5 THEN 
+             (CASE WHEN l.shift = 'Full Day' THEN 1.0 ELSE 0.5 END)
+           ELSE 0 END), 0) AS fridays,
+         
+         -- Sick Days
+         COALESCE(SUM(CASE 
+           WHEN l.activity = 'SICK' THEN 
+             (CASE WHEN l.shift = 'Full Day' THEN 1.0 ELSE 0.5 END)
+           ELSE 0 END), 0) AS sick_days,
+         
+         -- Off Days
+         COALESCE(SUM(CASE 
+           WHEN l.activity = 'OFF' THEN 
+             (CASE WHEN l.shift = 'Full Day' THEN 1.0 ELSE 0.5 END)
+           ELSE 0 END), 0) AS off_days,
+
+         -- Public Holidays
+         COALESCE(SUM(CASE 
+           WHEN l.activity = 'PH' THEN 
+             (CASE WHEN l.shift = 'Full Day' THEN 1.0 ELSE 0.5 END)
+           ELSE 0 END), 0) AS public_holidays
+
        FROM employees e
        LEFT JOIN logs l ON e.id = l.employee_id 
          AND EXTRACT(MONTH FROM l.work_date) = $2 

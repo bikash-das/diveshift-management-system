@@ -110,6 +110,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
           >
             <option value="S1">S1</option>
             <option value="S2">S2</option>
+            <option value="Full Day">Full Day</option>
           </select>
 
           <select
