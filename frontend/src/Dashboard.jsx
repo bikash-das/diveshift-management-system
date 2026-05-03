@@ -1,54 +1,53 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import AddShift from "./AddShift";
 import Employees from "./Employees";
 import Reports from "./Reports";
 
-// --- 1. STABLE DATA RETRIEVAL (Outside component to prevent infinite loops) ---
-const getStoredAuth = () => {
-  try {
-    const tenant = JSON.parse(localStorage.getItem("tenant"));
-    const token = localStorage.getItem("token");
-    return { tenant, token };
-  } catch (err) {
-    return { tenant: null, token: null };
-  }
-};
-
-const { tenant: stableTenant, token: stableToken } = getStoredAuth();
-
 export default function Dashboard({ onLogout, API }) {
-  // --- 2. STATE INITIALIZATION ---
+  // --- 1. STATE ---
   const [view, setView] = useState("shift");
   const [employees, setEmployees] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- 3. SECURE FETCH WRAPPERS ---
-
-  const fetchEmployees = useCallback(async () => {
-    if (!stableTenant || !stableToken) return;
+  // --- 2. STABLE DATA (Inside component, but memoized) ---
+  // useMemo ensures this only recalculates if the component actually unmounts/remounts
+  const auth = useMemo(() => {
     try {
-      const res = await fetch(`${API}/employee/${stableTenant.id}`, {
+      const tenant = JSON.parse(localStorage.getItem("tenant"));
+      const token = localStorage.getItem("token");
+      return { tenant, token };
+    } catch (err) {
+      return { tenant: null, token: null };
+    }
+  }, []);
+
+  const { tenant, token } = auth;
+
+  // --- 3. SECURE FETCH WRAPPERS ---
+  const fetchEmployees = useCallback(async () => {
+    if (!tenant || !token) return;
+    try {
+      const res = await fetch(`${API}/employee/${tenant.id}`, {
         headers: {
           "Content-Type": "application/json",
-          "x-auth-token": stableToken,
+          "x-auth-token": token,
         },
       });
 
       if (res.status === 401) return onLogout();
-
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
       console.error("Dashboard: Error fetching employees:", err);
     }
-  }, [API, onLogout]); // stableTenant.id and stableToken are now constants
+  }, [API, tenant?.id, token, onLogout]);
 
   const fetchLogs = useCallback(async () => {
-    if (!stableTenant || !stableToken) return;
+    if (!tenant || !token) return;
     try {
-      const res = await fetch(`${API}/logs/${stableTenant.id}`, {
-        headers: { "x-auth-token": stableToken },
+      const res = await fetch(`${API}/logs/${tenant.id}`, {
+        headers: { "x-auth-token": token },
       });
       const data = await res.json();
       setLogs(data);
@@ -57,31 +56,29 @@ export default function Dashboard({ onLogout, API }) {
     } finally {
       setLoading(false);
     }
-  }, [API]);
+  }, [API, tenant?.id, token]);
 
-  // --- 4. LIFECYCLE (The Fix) ---
+  // --- 4. LIFECYCLE ---
   useEffect(() => {
-    if (!stableTenant || !stableToken) {
+    if (!tenant || !token) {
       onLogout();
     } else {
       fetchEmployees();
       fetchLogs();
     }
-    // Dependency array is now stable; this will only run ONCE on mount.
-  }, [fetchEmployees, fetchLogs, onLogout]);
+    // This will only run once when the Dashboard is first displayed.
+  }, [fetchEmployees, fetchLogs, onLogout, tenant, token]);
 
-  // --- 5. RENDER HELPERS ---
-  if (!stableTenant) return null;
+  // --- 5. RENDER ---
+  if (!tenant) return null;
 
   return (
     <div style={styles.dashboardContainer}>
-      {/* NAVIGATION BAR */}
       <nav style={styles.navbar}>
         <div style={styles.brand}>
           <span style={styles.logoText}>DiveShift</span>
-          <span style={styles.tenantTag}>{stableTenant.name}</span>
+          <span style={styles.tenantTag}>{tenant.name}</span>
         </div>
-
         <div style={styles.navLinks}>
           <button
             onClick={() => setView("shift")}
@@ -107,7 +104,6 @@ export default function Dashboard({ onLogout, API }) {
         </div>
       </nav>
 
-      {/* MAIN CONTENT AREA */}
       <main style={styles.contentArea}>
         {loading ? (
           <div style={styles.loader}>Loading Dashboard...</div>
@@ -116,23 +112,21 @@ export default function Dashboard({ onLogout, API }) {
             {view === "shift" && (
               <AddShift
                 API={API}
-                tenant={stableTenant}
+                tenant={tenant}
                 employees={employees}
                 fetchLogs={fetchLogs}
                 logs={logs}
               />
             )}
-
             {view === "employees" && (
               <Employees
                 API={API}
-                tenant={stableTenant}
+                tenant={tenant}
                 refreshEmployees={fetchEmployees}
                 employees={employees}
               />
             )}
-
-            {view === "reports" && <Reports API={API} tenant={stableTenant} />}
+            {view === "reports" && <Reports API={API} tenant={tenant} />}
           </>
         )}
       </main>
@@ -140,8 +134,7 @@ export default function Dashboard({ onLogout, API }) {
   );
 }
 
-// --- 6. STYLING ---
-
+// Keep your existing styles and navButtonStyle below...
 const navButtonStyle = (isActive) => ({
   padding: "10px 18px",
   cursor: "pointer",
@@ -171,11 +164,7 @@ const styles = {
     top: 0,
     zIndex: 100,
   },
-  brand: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
+  brand: { display: "flex", alignItems: "center", gap: "12px" },
   logoText: {
     fontSize: "20px",
     fontWeight: "bold",
@@ -191,11 +180,7 @@ const styles = {
     fontWeight: "600",
     textTransform: "uppercase",
   },
-  navLinks: {
-    display: "flex",
-    gap: "8px",
-    alignItems: "center",
-  },
+  navLinks: { display: "flex", gap: "8px", alignItems: "center" },
   logoutBtn: {
     marginLeft: "10px",
     padding: "10px 18px",
@@ -206,14 +191,6 @@ const styles = {
     cursor: "pointer",
     fontWeight: "600",
   },
-  contentArea: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "30px",
-  },
-  loader: {
-    textAlign: "center",
-    marginTop: "50px",
-    color: "#888",
-  },
+  contentArea: { maxWidth: "1200px", margin: "0 auto", padding: "30px" },
+  loader: { textAlign: "center", marginTop: "50px", color: "#888" },
 };
