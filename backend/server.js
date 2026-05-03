@@ -52,6 +52,10 @@ const auth = (req, res, next) => {
   }
 };
 
+app.get("/health", async (req, res) => {
+  return res.status(200).json({ msg: "Health is good!" });
+});
+
 // --- AUTHENTICATION ---
 app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
