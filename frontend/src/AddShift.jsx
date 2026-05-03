@@ -100,7 +100,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
               onChange={(e) => handleChange("employee_id", e.target.value)}
               className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-0 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
             >
-              <option value="">Select Employee</option>
+              <option value="">Select staff</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.name}
