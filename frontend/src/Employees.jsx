@@ -17,16 +17,12 @@ export default function Employees({ API, tenant, refreshEmployees }) {
       const res = await fetch(`${API}/employee/${tenant.id}`, {
         headers: { "x-auth-token": token },
       });
-
-      if (res.status === 401) {
-        window.location.reload();
-        return;
-      }
+      if (res.status === 401) return window.location.reload();
 
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
-      console.error("Failed to fetch employees:", err);
+      console.error("Fetch Error:", err);
     } finally {
       setTimeout(() => setIsLoading(false), 300);
     }
@@ -48,9 +44,7 @@ export default function Employees({ API, tenant, refreshEmployees }) {
         },
         body: JSON.stringify({ ...form, tenant_id: tenant.id }),
       });
-
       if (res.status === 401) return window.location.reload();
-
       if (res.ok) {
         setForm({ name: "", position: "" });
         await fetchEmployees();
@@ -80,87 +74,96 @@ export default function Employees({ API, tenant, refreshEmployees }) {
   };
 
   return (
-    /* Alignment fix: margin: "20px auto" and padding added */
-    <div style={{ maxWidth: "900px", margin: "20px auto", padding: "0 10px" }}>
+    <div className="max-w-4xl mx-auto space-y-8 pb-10">
       {/* REGISTRATION FORM */}
-      <div style={styles.formCard}>
-        <h3 style={{ marginTop: 0 }}>Register New Staff</h3>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <input
-            placeholder="Full Name"
-            value={form.name}
-            disabled={isSubmitting}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            style={{ ...styles.input, flex: "2" }}
-          />
-          <input
-            placeholder="Position"
-            value={form.position}
-            disabled={isSubmitting}
-            onChange={(e) => setForm({ ...form, position: e.target.value })}
-            style={{ ...styles.input, flex: "1" }}
-          />
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-6">
+          Register New Staff
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div className="flex flex-col gap-1.5 sm:col-span-1">
+            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">
+              Full Name
+            </label>
+            <input
+              placeholder="e.g. John Doe"
+              value={form.name}
+              disabled={isSubmitting}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-0 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 sm:col-span-1">
+            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">
+              Position
+            </label>
+            <input
+              placeholder="e.g. Manager"
+              value={form.position}
+              disabled={isSubmitting}
+              onChange={(e) => setForm({ ...form, position: e.target.value })}
+              className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-4 py-0 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+            />
+          </div>
+
           <button
             onClick={handleAdd}
             disabled={isSubmitting}
-            style={{
-              ...styles.addBtn,
-              opacity: isSubmitting ? 0.7 : 1,
-              cursor: isSubmitting ? "not-allowed" : "pointer",
-            }}
+            className={`w-full h-[42px] rounded-xl font-bold text-white transition-all shadow-md active:scale-95 flex items-center justify-center ${
+              isSubmitting
+                ? "bg-slate-400"
+                : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100"
+            }`}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              {isSubmitting && <div style={styles.miniSpinner}></div>}
-              {isSubmitting ? "Saving..." : "Add Staff"}
-            </div>
+            {isSubmitting ? "Saving..." : "Add Staff"}
           </button>
         </div>
       </div>
 
       {/* EMPLOYEES TABLE */}
-      <div
-        style={{ position: "relative", minHeight: "200px", marginTop: "25px" }}
-      >
-        <table style={styles.table}>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[300px]">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr style={styles.theadRow}>
-              <th style={{ padding: "12px", textAlign: "left" }}>Name</th>
-              <th style={{ padding: "12px", textAlign: "left" }}>Position</th>
-              <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Name
+              </th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Position
+              </th>
+              <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                Action
+              </th>
             </tr>
           </thead>
-          <tbody style={{ opacity: isLoading ? 0.5 : 1 }}>
+          <tbody className={isLoading ? "opacity-50" : "opacity-100"}>
             {isLoading ? (
               <tr>
-                <td
-                  colSpan="3"
-                  style={{ padding: "50px", textAlign: "center" }}
-                >
-                  <div style={styles.centerSpinner}></div>
-                  <p
-                    style={{
-                      color: "#007bff",
-                      marginTop: "10px",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Loading staff...
+                <td colSpan="3" className="py-20 text-center">
+                  <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mx-auto"></div>
+                  <p className="text-sm font-medium text-slate-500 mt-4">
+                    Refreshing list...
                   </p>
                 </td>
               </tr>
             ) : employees.length > 0 ? (
               employees.map((emp) => (
-                <tr key={emp.id} style={styles.tr}>
-                  <td style={styles.tdName}>{emp.name}</td>
-                  <td style={styles.td}>{emp.position || "Staff"}</td>
-                  <td style={styles.tdCenter}>
+                <tr
+                  key={emp.id}
+                  className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0"
+                >
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-700">
+                    {emp.name}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500">
+                    {emp.position || "Staff"}
+                  </td>
+                  <td className="px-6 py-4 text-center">
                     <button
                       onClick={() => handleDelete(emp.id)}
                       disabled={deletingId === emp.id}
-                      style={{
-                        ...styles.delBtn,
-                        opacity: deletingId === emp.id ? 0.5 : 1,
-                      }}
+                      className="text-red-500 hover:bg-red-50 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-30"
                     >
                       {deletingId === emp.id ? "..." : "Remove"}
                     </button>
@@ -169,8 +172,11 @@ export default function Employees({ API, tenant, refreshEmployees }) {
               ))
             ) : (
               <tr>
-                <td colSpan="3" style={styles.emptyTd}>
-                  No employees registered.
+                <td
+                  colSpan="3"
+                  className="py-20 text-center text-slate-400 italic text-sm"
+                >
+                  No staff members found.
                 </td>
               </tr>
             )}
@@ -180,61 +186,3 @@ export default function Employees({ API, tenant, refreshEmployees }) {
     </div>
   );
 }
-
-const styles = {
-  formCard: {
-    padding: "20px",
-    backgroundColor: "#f9f9f9",
-    borderRadius: "8px",
-    border: "1px solid #ddd",
-  },
-  input: { padding: "8px", borderRadius: "4px", border: "1px solid #ccc" },
-  addBtn: {
-    padding: "8px 20px",
-    backgroundColor: "#28a745",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    fontWeight: "bold",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    backgroundColor: "white",
-    borderRadius: "8px",
-    overflow: "hidden",
-    border: "1px solid #eee",
-  },
-  theadRow: { backgroundColor: "#343a40", color: "white" },
-  tr: { borderBottom: "1px solid #eee" },
-  tdName: { padding: "12px", textAlign: "left", fontWeight: "500" },
-  td: { padding: "12px", textAlign: "left", color: "#444" },
-  tdCenter: { padding: "12px", textAlign: "center" },
-  delBtn: {
-    color: "#dc3545",
-    border: "1px solid #dc3545",
-    background: "none",
-    padding: "4px 10px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "12px",
-  },
-  emptyTd: { padding: "30px", textAlign: "center", color: "#999" },
-  centerSpinner: {
-    width: "40px",
-    height: "40px",
-    margin: "0 auto",
-    border: "4px solid #f3f3f3",
-    borderTop: "4px solid #007bff",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-  miniSpinner: {
-    width: "14px",
-    height: "14px",
-    border: "2px solid #ffffff",
-    borderTop: "2px solid transparent",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-};

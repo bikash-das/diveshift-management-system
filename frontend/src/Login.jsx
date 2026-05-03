@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-export default function Login({ onLogin, API }) {
-  const [email, setEmail] = useState(""); // Swapped username for email
+export default function Login({ onLogin, API, message }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -16,11 +16,8 @@ export default function Login({ onLogin, API }) {
         body: JSON.stringify({ email, password }),
       });
 
-      // Check if it's actually JSON before parsing
       const contentType = res.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        const text = await res.text(); // Get the error as text
-        console.error("Server returned non-JSON:", text);
         throw new Error("Server error: Check your backend logs.");
       }
 
@@ -34,7 +31,6 @@ export default function Login({ onLogin, API }) {
         alert(data.msg || "Invalid credentials");
       }
     } catch (err) {
-      console.error("Login Error:", err);
       alert(err.message || "Invalid email or password");
     } finally {
       setLoading(false);
@@ -42,94 +38,79 @@ export default function Login({ onLogin, API }) {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 350,
-        margin: "100px auto",
-        padding: "30px",
-        boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-        borderRadius: "12px",
-        backgroundColor: "#fff",
-      }}
-    >
-      <h2 style={{ textAlign: "center", marginBottom: "20px", color: "#333" }}>
-        DiveShift Login
-      </h2>
-
-      <form onSubmit={handleLogin}>
-        <div style={{ marginBottom: 15 }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: 5,
-              fontSize: "14px",
-              fontWeight: "500",
-            }}
-          >
-            Email Address
-          </label>
-          <input
-            type="email"
-            placeholder="name@business.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "6px",
-              border: "1px solid #ccc",
-              boxSizing: "border-box",
-            }}
-            required
-          />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+            DiveShift
+          </h2>
+          <p className="text-slate-500 mt-2 font-medium">
+            Welcome back! Please enter your details.
+          </p>
+          {message && (
+            <div className="mt-4 p-2 bg-amber-50 text-amber-700 text-sm rounded-lg border border-amber-100">
+              {message}
+            </div>
+          )}
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: 5,
-              fontSize: "14px",
-              fontWeight: "500",
-            }}
-          >
-            Password
-          </label>
-          <input
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "6px",
-              border: "1px solid #ccc",
-              boxSizing: "border-box",
-            }}
-            required
-          />
-        </div>
+        <form onSubmit={handleLogin} className="space-y-6">
+          {/* Email Field */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              placeholder="name@business.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+              required
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "12px",
-            backgroundColor: loading ? "#ccc" : "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontWeight: "bold",
-            fontSize: "16px",
-            transition: "background 0.3s",
-          }}
-        >
-          {loading ? "Authenticating..." : "Login"}
-        </button>
-      </form>
+          {/* Password Field */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+              required
+            />
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all shadow-lg active:scale-[0.98] ${
+              loading
+                ? "bg-slate-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200"
+            }`}
+          >
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>Authenticating...</span>
+              </div>
+            ) : (
+              "Sign In"
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center">
+          <p className="text-sm text-slate-400">&copy; 2026 DiveShift Inc.</p>
+        </div>
+      </div>
     </div>
   );
 }

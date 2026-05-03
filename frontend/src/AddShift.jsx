@@ -10,7 +10,6 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-
   const token = localStorage.getItem("token");
 
   const handleChange = (key, value) => {
@@ -30,10 +29,7 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
           "Content-Type": "application/json",
           "x-auth-token": token,
         },
-        body: JSON.stringify({
-          ...form,
-          tenant_id: tenant.id,
-        }),
+        body: JSON.stringify({ ...form, tenant_id: tenant.id }),
       });
 
       if (res.status === 401) return window.location.reload();
@@ -71,246 +67,193 @@ export default function AddShift({ API, tenant, employees, fetchLogs, logs }) {
     }
   };
 
+  const getBadgeClass = (activity) => {
+    switch (activity) {
+      case "SICK":
+        return "bg-red-50 text-red-600 border-red-100";
+      case "OFF":
+        return "bg-slate-100 text-slate-600 border-slate-200";
+      case "PH":
+        return "bg-cyan-50 text-cyan-600 border-cyan-100";
+      default:
+        return "bg-blue-50 text-blue-600 border-blue-100";
+    }
+  };
+
   return (
-    <div style={{ maxWidth: "900px", margin: "20px auto", padding: "0 10px" }}>
+    <div className="max-w-5xl mx-auto space-y-8 pb-10">
       {/* --- FORM SECTION --- */}
-      <div style={styles.formCard}>
-        <h3 style={{ marginTop: 0, marginBottom: "15px" }}>Add Shift</h3>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-6">Add New Shift</h3>
         <form
           onSubmit={handleSubmit}
-          style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end"
         >
-          <select
-            value={form.employee_id}
-            disabled={isSubmitting}
-            onChange={(e) => handleChange("employee_id", e.target.value)}
-            style={{ ...styles.input, flex: "1.5" }}
-          >
-            <option value="">Select Employee</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name}
-              </option>
-            ))}
-          </select>
+          {/* Staff Member */}
+          <div className="flex flex-col gap-1.5 lg:col-span-1">
+            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">
+              Staff Member
+            </label>
+            <select
+              value={form.employee_id}
+              disabled={isSubmitting}
+              onChange={(e) => handleChange("employee_id", e.target.value)}
+              className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-0 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+            >
+              <option value="">Select Employee</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <input
-            type="date"
-            value={form.date}
-            disabled={isSubmitting}
-            onChange={(e) => handleChange("date", e.target.value)}
-            style={{ ...styles.input, flex: "1" }}
-          />
+          {/* Date */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={form.date}
+              disabled={isSubmitting}
+              onChange={(e) => handleChange("date", e.target.value)}
+              className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-0 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            />
+          </div>
 
-          <select
-            value={form.shift}
-            disabled={isSubmitting}
-            onChange={(e) => handleChange("shift", e.target.value)}
-            style={{ ...styles.input, flex: "0.5" }}
-          >
-            <option value="S1">S1</option>
-            <option value="S2">S2</option>
-            <option value="Full Day">Full Day</option>
-          </select>
+          {/* Shift */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">
+              Shift
+            </label>
+            <select
+              value={form.shift}
+              disabled={isSubmitting}
+              onChange={(e) => handleChange("shift", e.target.value)}
+              className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-0 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+            >
+              <option value="S1">S1</option>
+              <option value="S2">S2</option>
+              <option value="Full Day">Full Day</option>
+            </select>
+          </div>
 
-          <select
-            value={form.activity}
-            disabled={isSubmitting}
-            onChange={(e) => handleChange("activity", e.target.value)}
-            style={{ ...styles.input, flex: "0.8" }}
-          >
-            <option value="DC">DC</option>
-            <option value="SNK">SNK</option>
-            <option value="OFF">OFF</option>
-            <option value="SICK">SICK</option>
-            <option value="PH">PH</option>
-          </select>
+          {/* Activity */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest ml-1">
+              Activity
+            </label>
+            <select
+              value={form.activity}
+              disabled={isSubmitting}
+              onChange={(e) => handleChange("activity", e.target.value)}
+              className="w-full h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-0 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+            >
+              <option value="DC">DC</option>
+              <option value="SNK">SNK</option>
+              <option value="OFF">OFF</option>
+              <option value="SICK">SICK</option>
+              <option value="PH">PH</option>
+            </select>
+          </div>
 
+          {/* Button */}
           <button
             type="submit"
             disabled={isSubmitting}
-            style={{
-              ...styles.saveBtn,
-              opacity: isSubmitting ? 0.7 : 1,
-              cursor: isSubmitting ? "not-allowed" : "pointer",
-            }}
+            className={`w-full h-[42px] rounded-xl font-bold text-white transition-all shadow-md active:scale-95 flex items-center justify-center ${
+              isSubmitting
+                ? "bg-slate-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"
+            }`}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              {isSubmitting && <div style={styles.miniSpinner}></div>}
-              {isSubmitting ? "Saving..." : "Save Shift"}
-            </div>
+            {isSubmitting ? "..." : "Save Shift"}
           </button>
         </form>
       </div>
 
-      {/* --- RECENT ENTRIES SECTION --- */}
-      <div style={{ marginTop: "25px" }}>
-        <h4 style={{ marginBottom: "15px", color: "#333" }}>
-          Recent Entries (Latest First)
-        </h4>
-        <div style={styles.tableContainer}>
-          <table style={styles.table}>
-            <thead style={styles.thead}>
-              <tr>
-                <th style={{ ...styles.th, width: "20%" }}>Date</th>
-                <th style={{ ...styles.th, width: "30%" }}>Name</th>
-                <th style={{ ...styles.th, width: "15%" }}>Shift</th>
-                <th style={{ ...styles.th, width: "20%" }}>Activity</th>
-                <th style={{ ...styles.thCenter, width: "15%" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs && logs.length > 0 ? (
-                logs.map((log) => (
-                  <tr key={log.id} style={styles.tr}>
-                    <td
-                      style={{ ...styles.td, ...styles.tdDate, width: "20%" }}
+      {/* --- TABLE SECTION --- */}
+      <div>
+        <div className="flex items-center justify-between mb-4 px-2">
+          <h4 className="text-lg font-bold text-slate-800">Recent Entries</h4>
+          <span className="text-xs text-slate-400 font-medium italic">
+            Latest first
+          </span>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[600px]">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Date
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Staff Name
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Shift
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Activity
+                  </th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {logs && logs.length > 0 ? (
+                  logs.map((log) => (
+                    <tr
+                      key={log.id}
+                      className="hover:bg-slate-50/80 transition-colors group"
                     >
-                      {new Date(log.work_date).toLocaleDateString("en-GB")}
-                    </td>
+                      <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
+                        {new Date(log.work_date).toLocaleDateString("en-GB")}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-700">
+                        {log.employee_name || "Staff"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">
+                        {log.shift}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-2.5 py-1 rounded-md text-[10px] font-bold border inline-block ${getBadgeClass(log.activity)}`}
+                        >
+                          {log.activity}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleDelete(log.id)}
+                          disabled={deletingId === log.id}
+                          className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-30"
+                        >
+                          {deletingId === log.id ? "..." : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
                     <td
-                      style={{ ...styles.td, ...styles.tdName, width: "30%" }}
+                      colSpan="5"
+                      className="px-6 py-12 text-center text-slate-400 italic"
                     >
-                      {log.employee_name || "Staff"}
-                    </td>
-                    <td
-                      style={{ ...styles.td, ...styles.tdBold, width: "15%" }}
-                    >
-                      {log.shift}
-                    </td>
-                    <td style={{ ...styles.td, width: "20%" }}>
-                      <span
-                        style={{
-                          ...styles.badge,
-                          ...getBadgeStyle(log.activity),
-                        }}
-                      >
-                        {log.activity}
-                      </span>
-                    </td>
-                    <td
-                      style={{ ...styles.td, ...styles.tdCenter, width: "15%" }}
-                    >
-                      <button
-                        onClick={() => handleDelete(log.id)}
-                        disabled={deletingId === log.id}
-                        style={{
-                          ...styles.delBtn,
-                          opacity: deletingId === log.id ? 0.5 : 1,
-                        }}
-                      >
-                        {deletingId === log.id ? "..." : "Delete"}
-                      </button>
+                      No shifts logged yet.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" style={styles.emptyTd}>
-                    No shifts logged yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-const getBadgeStyle = (activity) => {
-  switch (activity) {
-    case "SICK":
-      return { backgroundColor: "#ffebee", color: "#c62828" };
-    case "OFF":
-      return { backgroundColor: "#f5f5f5", color: "#666" };
-    case "PH":
-      return { backgroundColor: "#e0f7fa", color: "#006064" };
-    default:
-      return { backgroundColor: "#e3f2fd", color: "#0d47a1" };
-  }
-};
-
-const styles = {
-  formCard: {
-    padding: "20px",
-    border: "1px solid #ddd",
-    borderRadius: "8px",
-    backgroundColor: "#f9f9f9",
-  },
-  input: { padding: "8px", borderRadius: "4px", border: "1px solid #ccc" },
-  saveBtn: {
-    padding: "8px 20px",
-    backgroundColor: "#007bff",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    fontWeight: "bold",
-  },
-  tableContainer: {
-    maxHeight: "450px",
-    overflowY: "auto",
-    border: "1px solid #eee",
-    borderRadius: "8px",
-    backgroundColor: "white",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "14px",
-    tableLayout: "fixed", // Ensures width percentages are respected
-  },
-  thead: {
-    position: "sticky",
-    top: 0,
-    backgroundColor: "#343a40",
-    color: "white",
-    zIndex: 1,
-  },
-  th: {
-    padding: "12px 15px", // Increased horizontal padding
-    textAlign: "left",
-    fontWeight: "600",
-  },
-  thCenter: {
-    padding: "12px 15px",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  tr: { borderBottom: "1px solid #eee" },
-  td: {
-    padding: "12px 15px", // Match TH padding exactly
-    textAlign: "left",
-    verticalAlign: "middle",
-  },
-  tdDate: { color: "#666" },
-  tdName: { fontWeight: "500" },
-  tdBold: { fontWeight: "bold", color: "#444" },
-  tdCenter: { textAlign: "center" },
-  badge: {
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "11px",
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  delBtn: {
-    color: "#dc3545",
-    border: "1px solid #dc3545",
-    background: "none",
-    padding: "3px 8px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "11px",
-  },
-  emptyTd: { padding: "40px", textAlign: "center", color: "#999" },
-  miniSpinner: {
-    width: "14px",
-    height: "14px",
-    border: "2px solid #ffffff",
-    borderTop: "2px solid transparent",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-  },
-};

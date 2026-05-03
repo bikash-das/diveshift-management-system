@@ -4,14 +4,11 @@ import Employees from "./Employees";
 import Reports from "./Reports";
 
 export default function Dashboard({ onLogout, API }) {
-  // --- 1. STATE ---
   const [view, setView] = useState("shift");
   const [employees, setEmployees] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- 2. STABLE DATA (Inside component, but memoized) ---
-  // useMemo ensures this only recalculates if the component actually unmounts/remounts
   const auth = useMemo(() => {
     try {
       const tenant = JSON.parse(localStorage.getItem("tenant"));
@@ -24,7 +21,6 @@ export default function Dashboard({ onLogout, API }) {
 
   const { tenant, token } = auth;
 
-  // --- 3. SECURE FETCH WRAPPERS ---
   const fetchEmployees = useCallback(async () => {
     if (!tenant || !token) return;
     try {
@@ -34,12 +30,11 @@ export default function Dashboard({ onLogout, API }) {
           "x-auth-token": token,
         },
       });
-
       if (res.status === 401) return onLogout();
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
-      console.error("Dashboard: Error fetching employees:", err);
+      console.error("Dashboard Error:", err);
     }
   }, [API, tenant?.id, token, onLogout]);
 
@@ -52,13 +47,12 @@ export default function Dashboard({ onLogout, API }) {
       const data = await res.json();
       setLogs(data);
     } catch (err) {
-      console.error("Dashboard: Error fetching logs:", err);
+      console.error("Logs Error:", err);
     } finally {
       setLoading(false);
     }
   }, [API, tenant?.id, token]);
 
-  // --- 4. LIFECYCLE ---
   useEffect(() => {
     if (!tenant || !token) {
       onLogout();
@@ -66,49 +60,83 @@ export default function Dashboard({ onLogout, API }) {
       fetchEmployees();
       fetchLogs();
     }
-    // This will only run once when the Dashboard is first displayed.
   }, [fetchEmployees, fetchLogs, onLogout, tenant, token]);
 
-  // --- 5. RENDER ---
   if (!tenant) return null;
 
   return (
-    <div style={styles.dashboardContainer}>
-      <nav style={styles.navbar}>
-        <div style={styles.brand}>
-          <span style={styles.logoText}>DiveShift</span>
-          <span style={styles.tenantTag}>{tenant.name}</span>
-        </div>
-        <div style={styles.navLinks}>
-          <button
-            onClick={() => setView("shift")}
-            style={navButtonStyle(view === "shift")}
-          >
-            Add Shift
-          </button>
-          <button
-            onClick={() => setView("employees")}
-            style={navButtonStyle(view === "employees")}
-          >
-            Staffs
-          </button>
-          <button
-            onClick={() => setView("reports")}
-            style={navButtonStyle(view === "reports")}
-          >
-            Reports
-          </button>
-          <button onClick={onLogout} style={styles.logoutBtn}>
-            Logout
-          </button>
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* NAVBAR */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center py-3 gap-4">
+            {/* Brand Section */}
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-bold text-slate-800 tracking-tight">
+                DiveShift
+              </span>
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full uppercase border border-blue-100">
+                {tenant.name}
+              </span>
+            </div>
+
+            {/* Navigation Links - Scrollable on mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+              <button
+                onClick={() => setView("shift")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                  view === "shift"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Add Shift
+              </button>
+              <button
+                onClick={() => setView("employees")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                  view === "employees"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Staffs
+              </button>
+              <button
+                onClick={() => setView("reports")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                  view === "reports"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Reports
+              </button>
+
+              <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden md:block"></div>
+
+              <button
+                onClick={onLogout}
+                className="px-4 py-2 text-sm font-semibold text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       </nav>
 
-      <main style={styles.contentArea}>
+      {/* MAIN CONTENT AREA */}
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {loading ? (
-          <div style={styles.loader}>Loading Dashboard...</div>
+          <div className="flex flex-col items-center justify-center mt-20">
+            <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="mt-4 text-slate-500 font-medium">
+              Loading Dashboard...
+            </p>
+          </div>
         ) : (
-          <>
+          <div className="animate-in fade-in duration-500">
             {view === "shift" && (
               <AddShift
                 API={API}
@@ -127,70 +155,9 @@ export default function Dashboard({ onLogout, API }) {
               />
             )}
             {view === "reports" && <Reports API={API} tenant={tenant} />}
-          </>
+          </div>
         )}
       </main>
     </div>
   );
 }
-
-// Keep your existing styles and navButtonStyle below...
-const navButtonStyle = (isActive) => ({
-  padding: "10px 18px",
-  cursor: "pointer",
-  border: "none",
-  borderRadius: "6px",
-  backgroundColor: isActive ? "#007bff" : "transparent",
-  color: isActive ? "white" : "#555",
-  fontWeight: "600",
-  fontSize: "14px",
-  transition: "all 0.2s ease",
-});
-
-const styles = {
-  dashboardContainer: {
-    minHeight: "100vh",
-    backgroundColor: "#f4f7f9",
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  },
-  navbar: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "15px 40px",
-    backgroundColor: "#ffffff",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-    position: "sticky",
-    top: 0,
-    zIndex: 100,
-  },
-  brand: { display: "flex", alignItems: "center", gap: "12px" },
-  logoText: {
-    fontSize: "20px",
-    fontWeight: "bold",
-    color: "#333",
-    letterSpacing: "-0.5px",
-  },
-  tenantTag: {
-    fontSize: "12px",
-    backgroundColor: "#e7f3ff",
-    color: "#007bff",
-    padding: "4px 10px",
-    borderRadius: "20px",
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  navLinks: { display: "flex", gap: "8px", alignItems: "center" },
-  logoutBtn: {
-    marginLeft: "10px",
-    padding: "10px 18px",
-    backgroundColor: "#fff",
-    color: "#dc3545",
-    border: "1px solid #dc3545",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-  contentArea: { maxWidth: "1200px", margin: "0 auto", padding: "30px" },
-  loader: { textAlign: "center", marginTop: "50px", color: "#888" },
-};
