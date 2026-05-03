@@ -3,7 +3,7 @@ import Dashboard from "./Dashboard";
 import Login from "./Login";
 
 // 1. DEFINE YOUR API URL HERE
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);

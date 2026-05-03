@@ -3,44 +3,52 @@ import AddShift from "./AddShift";
 import Employees from "./Employees";
 import Reports from "./Reports";
 
+// --- 1. STABLE DATA RETRIEVAL (Outside component to prevent infinite loops) ---
+const getStoredAuth = () => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant"));
+    const token = localStorage.getItem("token");
+    return { tenant, token };
+  } catch (err) {
+    return { tenant: null, token: null };
+  }
+};
+
+const { tenant: stableTenant, token: stableToken } = getStoredAuth();
+
 export default function Dashboard({ onLogout, API }) {
-  // --- 1. STATE & DATA INITIALIZATION ---
+  // --- 2. STATE INITIALIZATION ---
   const [view, setView] = useState("shift");
   const [employees, setEmployees] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Retrieve auth data from storage
-  const tenant = JSON.parse(localStorage.getItem("tenant"));
-  const token = localStorage.getItem("token");
+  // --- 3. SECURE FETCH WRAPPERS ---
 
-  // --- 2. SECURE FETCH WRAPPERS ---
-
-  // Using useCallback to prevent unnecessary re-renders
   const fetchEmployees = useCallback(async () => {
-    if (!tenant || !token) return;
+    if (!stableTenant || !stableToken) return;
     try {
-      const res = await fetch(`${API}/employee/${tenant.id}`, {
+      const res = await fetch(`${API}/employee/${stableTenant.id}`, {
         headers: {
           "Content-Type": "application/json",
-          "x-auth-token": token, // Required by your backend 'auth' middleware
+          "x-auth-token": stableToken,
         },
       });
 
-      if (res.status === 401) return onLogout(); // Token expired, kick to login
+      if (res.status === 401) return onLogout();
 
       const data = await res.json();
       setEmployees(data);
     } catch (err) {
       console.error("Dashboard: Error fetching employees:", err);
     }
-  }, [API, tenant?.id, token, onLogout]);
+  }, [API, onLogout]); // stableTenant.id and stableToken are now constants
 
   const fetchLogs = useCallback(async () => {
-    if (!tenant || !token) return;
+    if (!stableTenant || !stableToken) return;
     try {
-      const res = await fetch(`${API}/logs/${tenant.id}`, {
-        headers: { "x-auth-token": token },
+      const res = await fetch(`${API}/logs/${stableTenant.id}`, {
+        headers: { "x-auth-token": stableToken },
       });
       const data = await res.json();
       setLogs(data);
@@ -49,20 +57,21 @@ export default function Dashboard({ onLogout, API }) {
     } finally {
       setLoading(false);
     }
-  }, [API, tenant?.id, token]);
+  }, [API]);
 
-  // --- 3. LIFECYCLE ---
+  // --- 4. LIFECYCLE (The Fix) ---
   useEffect(() => {
-    if (!tenant || !token) {
-      onLogout(); // Guard clause: if data is missing, go to login
+    if (!stableTenant || !stableToken) {
+      onLogout();
     } else {
       fetchEmployees();
       fetchLogs();
     }
-  }, [fetchEmployees, fetchLogs, tenant, token, onLogout]);
+    // Dependency array is now stable; this will only run ONCE on mount.
+  }, [fetchEmployees, fetchLogs, onLogout]);
 
-  // --- 4. RENDER HELPERS ---
-  if (!tenant) return null;
+  // --- 5. RENDER HELPERS ---
+  if (!stableTenant) return null;
 
   return (
     <div style={styles.dashboardContainer}>
@@ -70,7 +79,7 @@ export default function Dashboard({ onLogout, API }) {
       <nav style={styles.navbar}>
         <div style={styles.brand}>
           <span style={styles.logoText}>DiveShift</span>
-          <span style={styles.tenantTag}>{tenant.name}</span>
+          <span style={styles.tenantTag}>{stableTenant.name}</span>
         </div>
 
         <div style={styles.navLinks}>
@@ -107,7 +116,7 @@ export default function Dashboard({ onLogout, API }) {
             {view === "shift" && (
               <AddShift
                 API={API}
-                tenant={tenant}
+                tenant={stableTenant}
                 employees={employees}
                 fetchLogs={fetchLogs}
                 logs={logs}
@@ -117,13 +126,13 @@ export default function Dashboard({ onLogout, API }) {
             {view === "employees" && (
               <Employees
                 API={API}
-                tenant={tenant}
+                tenant={stableTenant}
                 refreshEmployees={fetchEmployees}
                 employees={employees}
               />
             )}
 
-            {view === "reports" && <Reports API={API} tenant={tenant} />}
+            {view === "reports" && <Reports API={API} tenant={stableTenant} />}
           </>
         )}
       </main>
@@ -131,7 +140,7 @@ export default function Dashboard({ onLogout, API }) {
   );
 }
 
-// --- 5. STYLING ---
+// --- 6. STYLING ---
 
 const navButtonStyle = (isActive) => ({
   padding: "10px 18px",
