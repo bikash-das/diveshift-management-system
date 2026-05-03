@@ -12,3 +12,4 @@ npm-debug.log*
 # Production build (if using TypeScript/Compilers)
 dist/
 build/
+localscripts/
