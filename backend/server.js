@@ -272,3 +272,26 @@ const PORT = process.env.PORT || 8000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running on port ${PORT}`);
+
+  // Keep-Alive Logic
+  const backendUrl = process.env.BACKEND_KEEP_ALIVE_URL;
+
+  setInterval(
+    () => {
+      https
+        .get(backendUrl, (res) => {
+          if (res.statusCode === 200) {
+            console.log("Keep-alive: Backend is awake");
+          } else {
+            console.warn(`Keep-alive: Received status ${res.statusCode}`);
+          }
+        })
+        .on("error", (err) => {
+          console.error("Keep-alive error:", err.message);
+        });
+    },
+    14 * 60 * 1000,
+  ); // 14 minutes in milliseconds
+});
