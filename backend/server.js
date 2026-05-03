@@ -80,7 +80,10 @@ app.post("/auth/login", async (req, res) => {
     });
 
     console.log(`Login successful: Tenant ${user.name} (ID: ${user.id})`);
-    res.json({ token, tenant: { id: user.id, name: user.name } });
+    res.json({
+      token,
+      tenant: { id: user.id, name: user.company_name ?? "Global" },
+    });
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ msg: `Server error during login: ${err?.message}` });
